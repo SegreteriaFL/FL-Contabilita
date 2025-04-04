@@ -61,6 +61,7 @@ def mostra_prima_nota(ruolo):
                         nuova_riga = [str(data), causale, centro, cassa, importo, descrizione, note]
                         ws["movimenti"].append_row(nuova_riga)
                         st.success("✅ Movimento salvato!")
+                        st.session_state.form_visibile = False
                         try:
                             st.rerun()
                         except AttributeError:
@@ -79,12 +80,17 @@ def mostra_dashboard():
     entrate = df[df["Importo"] > 0].groupby("Mese")["Importo"].sum()
     uscite = df[df["Importo"] < 0].groupby("Mese")["Importo"].sum()
 
-    st.subheader("Entrate e Uscite mensili")
-    fig, ax = plt.subplots()
-    entrate.plot(kind="bar", ax=ax, label="Entrate", color="green")
-    uscite.plot(kind="bar", ax=ax, label="Uscite", color="red")
-    ax.legend()
-    st.pyplot(fig)
+    if not entrate.empty or not uscite.empty:
+        st.subheader("Entrate e Uscite mensili")
+        fig, ax = plt.subplots()
+        if not entrate.empty:
+            entrate.plot(kind="bar", ax=ax, label="Entrate", color="green")
+        if not uscite.empty:
+            uscite.plot(kind="bar", ax=ax, label="Uscite", color="red")
+        ax.legend()
+        st.pyplot(fig)
+    else:
+        st.info("Ancora nessun dato da visualizzare.")
 
 def mostra_rendiconto():
     ws = get_worksheet()
