@@ -143,13 +143,11 @@ def mostra_saldi_cassa(ruolo):
                 nuove_righe.append([nome, saldo])
 
             st.markdown("---")
-            raw_paste = st.text_area("📋 Incolla qui dati da Excel (una riga per cassa, separati da tab o spazio)", placeholder="Contanti	300,00
-Banca Intesa	1250,00")
+            raw_paste = st.text_area("📋 Incolla qui dati da Excel (una riga per cassa, separati da tab o spazio)", placeholder="Contanti\t300,00\nBanca Intesa\t1250,00")
 
             if raw_paste:
-                for riga in raw_paste.strip().split("
-"):
-                    parts = riga.strip().replace("	", " ").split()
+                for riga in raw_paste.strip().split("\n"):
+                    parts = riga.strip().replace("\t", " ").split()
                     if len(parts) >= 2:
                         nome = " ".join(parts[:-1])
                         try:
