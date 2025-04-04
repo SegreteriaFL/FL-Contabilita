@@ -6,6 +6,13 @@ import matplotlib.pyplot as plt
 
 SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
 
+# Formattazione italiana per numeri
+def format_euro(valore):
+    try:
+        return f"{valore:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") + " €"
+    except:
+        return valore
+
 @st.cache_resource
 def get_worksheet():
     creds = service_account.Credentials.from_service_account_info(
@@ -25,6 +32,8 @@ def get_worksheet():
 def mostra_prima_nota(ruolo):
     ws = get_worksheet()
     df = pd.DataFrame(ws["movimenti"].get_all_records())
+    df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce")
+    df["Importo"] = df["Importo"].apply(format_euro)
     st.title("📒 Prima Nota")
     st.dataframe(df)
 
@@ -44,7 +53,12 @@ def mostra_nuovo_movimento(ruolo):
         centro = st.selectbox("Centro", ["— Seleziona —"] + centri)
         casse = [r[0] for r in ws["casse"].get_all_values()]
         cassa = st.selectbox("Cassa", ["— Seleziona —"] + casse)
-        importo = st.number_input("Importo", step=1.0)
+        importo_raw = st.text_input("Importo", value="0,00")
+        try:
+            importo = float(importo_raw.replace(",", "."))
+        except ValueError:
+            importo = 0
+            st.warning("⚠️ Inserisci un numero valido (es. 1234,56)")
         descrizione = st.text_input("Descrizione")
         note = st.text_area("Note")
         invia = st.form_submit_button("Salva")
@@ -92,22 +106,25 @@ def mostra_rendiconto():
     uscite = df[df["Importo"] < 0]["Importo"].sum()
     saldo_movimenti = entrate + uscite
 
-    st.metric("Totale Entrate", f"{entrate:,.2f} €")
-    st.metric("Totale Uscite", f"{-uscite:,.2f} €")
-    st.metric("Saldo Finale", f"{saldo_movimenti:,.2f} €")
+    st.metric("Totale Entrate", format_euro(entrate))
+    st.metric("Totale Uscite", format_euro(-uscite))
+    st.metric("Saldo Finale", format_euro(saldo_movimenti))
 
     try:
         estratti = pd.DataFrame(ws["estratti"].get_all_records())
         estratti["Saldo dichiarato"] = pd.to_numeric(estratti["Saldo dichiarato"], errors="coerce")
         totale_estratti = estratti["Saldo dichiarato"].sum()
-        st.metric("Totale Saldi Cassa Dichiarati", f"{totale_estratti:,.2f} €")
+        st.metric("Totale Saldi Cassa Dichiarati", format_euro(totale_estratti))
 
         saldi_cassa = df.groupby("Cassa")["Importo"].sum().reset_index().rename(columns={"Importo": "Saldo movimenti"})
         confronto = pd.merge(saldi_cassa, estratti, on="Cassa", how="outer").fillna(0)
         confronto["Delta"] = confronto["Saldo movimenti"] - confronto["Saldo dichiarato"]
+        confronto["Saldo movimenti"] = confronto["Saldo movimenti"].apply(format_euro)
+        confronto["Saldo dichiarato"] = confronto["Saldo dichiarato"].apply(format_euro)
+        confronto["Delta"] = confronto["Delta"].apply(format_euro)
         st.dataframe(confronto)
 
-        if not confronto["Delta"].between(-1e-2, 1e-2).all():
+        if not confronto["Delta"].astype(str).str.replace(".", "").str.replace(",", "").astype(float).between(-1e-2, 1e-2).all():
             st.error("⚠️ Attenzione: i saldi non coincidono!")
         else:
             st.success("✅ Tutto torna: prova del 9 superata!")
@@ -134,9 +151,10 @@ def mostra_saldi_cassa(ruolo):
             for i, riga in enumerate(nuova_tabella):
                 c1, c2 = st.columns(2)
                 nome = c1.text_input(f"Cassa {i}", riga["Cassa"], disabled=True)
-                saldo_raw = c2.text_input(f"Saldo {i}", value="{:.2f}".format(riga["Saldo"]).replace(".", ","))
+                saldo_input = "{:.2f}".format(riga["Saldo"]).replace(".", ",")
+                saldo_raw = c2.text_input(f"Saldo {i}", value=saldo_input)
                 try:
-                    saldo = float(saldo_raw.replace(",", "."))
+                    saldo = round(float(saldo_raw.replace(",", ".")), 2)
                 except ValueError:
                     saldo = 0
                     st.warning(f"⚠️ Inserisci un numero valido per {riga['Cassa']}")
