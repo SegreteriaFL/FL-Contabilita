@@ -61,14 +61,17 @@ def mostra_prima_nota(ruolo):
                         nuova_riga = [str(data), causale, centro, cassa, importo, descrizione, note]
                         ws["movimenti"].append_row(nuova_riga)
                         st.success("✅ Movimento salvato!")
-                        st.experimental_rerun()
+                        try:
+                            st.rerun()
+                        except AttributeError:
+                            st.experimental_rerun()
 
 def mostra_dashboard():
     ws = get_worksheet()
     df = pd.DataFrame(ws["movimenti"].get_all_records())
     st.title("📊 Dashboard")
 
-    df.columns = [col.strip() for col in df.columns]  # normalizza intestazioni
+    df.columns = [col.strip() for col in df.columns]
     df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce")
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
     df["Mese"] = df["Data"].dt.strftime("%Y-%m")
