@@ -1,3 +1,4 @@
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 import streamlit as st
 import pandas as pd
 import gspread
@@ -43,18 +44,31 @@ def mostra_prima_nota(ruolo):
     df["Importo"] = df["Importo"].apply(format_euro)
     st.title("📒 Prima Nota")
     
-    st.write("📋 Elenco movimenti")
-    for i, row in df.iterrows():
-        cols = st.columns([10, 1, 1])
-        with cols[0]:
-            st.write(f"{row['Data']} | {row['Causale']} | {row['Centro']} | {row['Cassa']} | {format_euro(row['Importo'])} | {row['Descrizione']} | {row['Note']}")
-        with cols[1]:
-            if st.button("✏️", key=f"edit_{i}"):
-                st.info(f"Modifica movimento {i} (prossimamente)")
-        with cols[2]:
-            if st.button("🗑️", key=f"del_{i}"):
-                st.warning(f"Elimina movimento {i} (prossimamente)")
-    
+    gb = GridOptionsBuilder.from_dataframe(df)
+    gb.configure_pagination()
+    gb.configure_default_column(editable=False, groupable=True)
+    gb.configure_column("Modifica", header_name="✏️", cellRenderer='buttonRenderer', 
+                        cellRendererParams={'label': 'Modifica'}, 
+                        editable=False)
+    gb.configure_column("Elimina", header_name="🗑️", cellRenderer='buttonRenderer', 
+                        cellRendererParams={'label': 'Elimina'}, 
+                        editable=False)
+    gridOptions = gb.build()
+
+    # Aggiungiamo colonne vuote per pulsanti (placeholder)
+    df["Modifica"] = ""
+    df["Elimina"] = ""
+
+    grid_response = AgGrid(
+        df,
+        gridOptions=gridOptions,
+        update_mode=GridUpdateMode.NO_UPDATE,
+        allow_unsafe_jscode=True,
+        fit_columns_on_grid_load=True,
+        height=500,
+        reload_data=True
+    )
+
 
 def mostra_nuovo_movimento(ruolo):
     if ruolo not in ["tesoriere", "superadmin"]:
