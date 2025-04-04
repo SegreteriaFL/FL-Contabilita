@@ -4,7 +4,7 @@ import gspread
 from google.oauth2 import service_account
 import matplotlib.pyplot as plt
 
-SHEET_NAME = "Contabilita ETS 2024"
+SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
 
 @st.cache_resource
 def get_worksheet(sheet_name):
