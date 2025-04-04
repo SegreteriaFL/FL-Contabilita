@@ -119,11 +119,7 @@ def carica_movimenti():
     return df
 
 # === Import delle sezioni modulari ===
-from sezioni import (
-    mostra_prima_nota,
-    mostra_dashboard,
-    mostra_rendiconto
-)
+from sezioni import mostra_prima_nota, mostra_dashboard, mostra_rendiconto
 
 # === Routing ===
 if sezione_attiva == "Prima Nota":
