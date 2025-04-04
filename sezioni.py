@@ -124,16 +124,21 @@ def mostra_saldi_cassa(ruolo):
     ws = get_worksheet()
 
     try:
-        estratti = pd.DataFrame(ws["estratti"].get_all_records())
-        estratti["Saldo dichiarato"] = pd.to_numeric(estratti["Saldo dichiarato"], errors="coerce")
+        casse_rif = [r[0] for r in ws["casse"].get_all_values()]
+        estratti_df = pd.DataFrame(ws["estratti"].get_all_records())
+
+        # Merge tra elenco casse e saldi esistenti
+        saldi_map = dict(zip(estratti_df["Cassa"], estratti_df["Saldo dichiarato"])) if not estratti_df.empty else {}
+        nuova_tabella = [{"Cassa": cassa, "Saldo": saldi_map.get(cassa, 0)} for cassa in casse_rif]
 
         with st.form("form_saldi"):
             nuove_righe = []
-            for riga in estratti.itertuples():
+            for i, riga in enumerate(nuova_tabella):
                 c1, c2 = st.columns(2)
-                nome = c1.text_input(f"Cassa {riga.Index}", riga.Cassa)
-                saldo = c2.number_input(f"Saldo {riga.Index}", value=riga._2)
+                nome = c1.text_input(f"Cassa {i}", riga["Cassa"], disabled=True)
+                saldo = c2.number_input(f"Saldo {i}", value=riga["Saldo"])
                 nuove_righe.append([nome, saldo])
+
             salva = st.form_submit_button("Salva saldi")
             if salva:
                 ws["estratti"].clear()
@@ -143,5 +148,5 @@ def mostra_saldi_cassa(ruolo):
                 st.success("✅ Saldi aggiornati.")
                 try: st.rerun()
                 except Exception: st.experimental_rerun()
-    except Exception:
-        st.info("⚠️ Nessun foglio `estratti_conto` trovato o formattazione errata.")
+    except Exception as e:
+        st.error("Errore nel caricamento dei saldi: " + str(e))
