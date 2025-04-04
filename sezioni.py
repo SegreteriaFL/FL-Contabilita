@@ -83,11 +83,11 @@ def mostra_nuovo_movimento(ruolo):
                     st.success("✅ Movimento salvato!")
                     st.session_state["form_inviato"] = True
                     time.sleep(1)
-                    st.experimental_rerun()
+                    st.rerun()
     else:
         st.info("✅ Movimento salvato. Vai alla sezione '📒 Prima Nota' per vederlo.")
         if st.button("↩️ Torna alla Prima Nota"):
-            st.experimental_rerun()
+            st.rerun()
 
 def mostra_dashboard():
     ws = get_worksheet()
@@ -200,6 +200,6 @@ def mostra_saldi_cassa(ruolo):
                     time.sleep(0.5)
                 st.success("✅ Saldi aggiornati.")
                 try: st.rerun()
-                except Exception: st.experimental_rerun()
+                except Exception: st.rerun()
     except Exception as e:
         st.error("Errore nel caricamento dei saldi: " + str(e))
