@@ -122,10 +122,7 @@ def carica_movimenti():
 from sezioni import (
     mostra_prima_nota,
     mostra_dashboard,
-    mostra_rendiconto,
-    mostra_donazioni,
-    mostra_quote,
-    mostra_nuovo_movimento,
+    mostra_rendiconto
 )
 
 # === Routing ===
