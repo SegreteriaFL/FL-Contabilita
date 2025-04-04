@@ -28,35 +28,36 @@ def mostra_prima_nota(ruolo):
     st.title("📒 Prima Nota")
     st.dataframe(df)
 
-    if ruolo in ["tesoriere", "superadmin"]:
-        st.sidebar.markdown("---")
-        if st.sidebar.button("➕ Nuovo Movimento"):
-            st.session_state.form_visibile = not st.session_state.get("form_visibile", False)
+def mostra_nuovo_movimento(ruolo):
+    if ruolo not in ["tesoriere", "superadmin"]:
+        st.warning("Accesso negato.")
+        return
 
-        if st.session_state.get("form_visibile", False):
-            with st.form("form_movimento"):
-                data = st.date_input("Data")
-                causali = [r[0] for r in ws["causali"].get_all_values()]
-                causale = st.selectbox("Causale", ["— Seleziona —"] + causali)
-                centri = [r[0] for r in ws["centri"].get_all_values()]
-                centro = st.selectbox("Centro", ["— Seleziona —"] + centri)
-                casse = [r[0] for r in ws["casse"].get_all_values()]
-                cassa = st.selectbox("Cassa", ["— Seleziona —"] + casse)
-                importo = st.number_input("Importo", step=1.0)
-                descrizione = st.text_input("Descrizione")
-                note = st.text_area("Note")
-                invia = st.form_submit_button("Salva")
+    st.title("➕ Nuovo Movimento")
+    ws = get_worksheet()
 
-                if invia:
-                    if causale.startswith("—") or centro.startswith("—") or cassa.startswith("—"):
-                        st.warning("Compila tutti i campi prima di salvare.")
-                    else:
-                        riga = [str(data), causale, centro, cassa, importo, descrizione, note]
-                        ws["movimenti"].append_row(riga)
-                        st.success("✅ Movimento salvato!")
-                        st.session_state.form_visibile = False
-                        try: st.rerun()
-                        except Exception: st.experimental_rerun()
+    with st.form("form_movimento"):
+        data = st.date_input("Data")
+        causali = [r[0] for r in ws["causali"].get_all_values()]
+        causale = st.selectbox("Causale", ["— Seleziona —"] + causali)
+        centri = [r[0] for r in ws["centri"].get_all_values()]
+        centro = st.selectbox("Centro", ["— Seleziona —"] + centri)
+        casse = [r[0] for r in ws["casse"].get_all_values()]
+        cassa = st.selectbox("Cassa", ["— Seleziona —"] + casse)
+        importo = st.number_input("Importo", step=1.0)
+        descrizione = st.text_input("Descrizione")
+        note = st.text_area("Note")
+        invia = st.form_submit_button("Salva")
+
+        if invia:
+            if causale.startswith("—") or centro.startswith("—") or cassa.startswith("—"):
+                st.warning("Compila tutti i campi prima di salvare.")
+            else:
+                riga = [str(data), causale, centro, cassa, importo, descrizione, note]
+                ws["movimenti"].append_row(riga)
+                st.success("✅ Movimento salvato!")
+                try: st.rerun()
+                except Exception: st.experimental_rerun()
 
 def mostra_dashboard():
     ws = get_worksheet()
@@ -111,25 +112,36 @@ def mostra_rendiconto():
         else:
             st.success("✅ Tutto torna: prova del 9 superata!")
 
-        if st.session_state.get("modifica_saldi") or st.button("✏️ Modifica Saldi Cassa"):
-            st.session_state.modifica_saldi = True
-            with st.form("form_saldi"):
-                nuove_righe = []
-                for riga in estratti.itertuples():
-                    c1, c2 = st.columns(2)
-                    nome = c1.text_input(f"Cassa {riga.Index}", riga.Cassa)
-                    saldo = c2.number_input(f"Saldo {riga.Index}", value=riga._2)
-                    nuove_righe.append([nome, saldo])
-                salva = st.form_submit_button("Salva saldi")
-                if salva:
-                    ws["estratti"].clear()
-                    ws["estratti"].append_row(["Cassa", "Saldo dichiarato"])
-                    for r in nuove_righe:
-                        ws["estratti"].append_row(r)
-                    st.success("✅ Saldi aggiornati.")
-                    st.session_state.modifica_saldi = False
-                    try: st.rerun()
-                    except Exception: st.experimental_rerun()
-
-    except Exception as e:
+    except Exception:
         st.info("💡 Nessun estratto conto caricato. Aggiungilo nel foglio `estratti_conto`.")
+
+def mostra_saldi_cassa(ruolo):
+    if ruolo not in ["tesoriere", "superadmin"]:
+        st.warning("Accesso negato.")
+        return
+
+    st.title("✏️ Saldi Cassa")
+    ws = get_worksheet()
+
+    try:
+        estratti = pd.DataFrame(ws["estratti"].get_all_records())
+        estratti["Saldo dichiarato"] = pd.to_numeric(estratti["Saldo dichiarato"], errors="coerce")
+
+        with st.form("form_saldi"):
+            nuove_righe = []
+            for riga in estratti.itertuples():
+                c1, c2 = st.columns(2)
+                nome = c1.text_input(f"Cassa {riga.Index}", riga.Cassa)
+                saldo = c2.number_input(f"Saldo {riga.Index}", value=riga._2)
+                nuove_righe.append([nome, saldo])
+            salva = st.form_submit_button("Salva saldi")
+            if salva:
+                ws["estratti"].clear()
+                ws["estratti"].append_row(["Cassa", "Saldo dichiarato"])
+                for r in nuove_righe:
+                    ws["estratti"].append_row(r)
+                st.success("✅ Saldi aggiornati.")
+                try: st.rerun()
+                except Exception: st.experimental_rerun()
+    except Exception:
+        st.info("⚠️ Nessun foglio `estratti_conto` trovato o formattazione errata.")
