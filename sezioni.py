@@ -43,15 +43,17 @@ def mostra_prima_nota(ruolo):
     df["Importo"] = df["Importo"].apply(format_euro)
     st.title("📒 Prima Nota")
     
-    for idx, row in df.iterrows():
-        col1, col2 = st.columns([10, 1])
-        with col1:
-            st.write(row)
-        with col2:
-            if st.button("✏️", key=f"modifica_{idx}"):
-                st.info(f"Modifica movimento {idx} (prossimamente)")
-            if st.button("🗑️", key=f"elimina_{idx}"):
-                st.warning(f"Elimina movimento {idx} (prossimamente)")
+    st.write("📋 Elenco movimenti")
+    for i, row in df.iterrows():
+        cols = st.columns([10, 1, 1])
+        with cols[0]:
+            st.write(f"{row['Data']} | {row['Causale']} | {row['Centro']} | {row['Cassa']} | {format_euro(row['Importo'])} | {row['Descrizione']} | {row['Note']}")
+        with cols[1]:
+            if st.button("✏️", key=f"edit_{i}"):
+                st.info(f"Modifica movimento {i} (prossimamente)")
+        with cols[2]:
+            if st.button("🗑️", key=f"del_{i}"):
+                st.warning(f"Elimina movimento {i} (prossimamente)")
     
 
 def mostra_nuovo_movimento(ruolo):
