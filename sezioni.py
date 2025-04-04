@@ -126,8 +126,6 @@ def mostra_saldi_cassa(ruolo):
     try:
         casse_rif = [r[0] for r in ws["casse"].get_all_values()]
         estratti_df = pd.DataFrame(ws["estratti"].get_all_records())
-
-        # Merge tra elenco casse e saldi esistenti
         saldi_map = dict(zip(estratti_df["Cassa"], estratti_df["Saldo dichiarato"])) if not estratti_df.empty else {}
         nuova_tabella = [{"Cassa": cassa, "Saldo": saldi_map.get(cassa, 0)} for cassa in casse_rif]
 
@@ -136,10 +134,31 @@ def mostra_saldi_cassa(ruolo):
             for i, riga in enumerate(nuova_tabella):
                 c1, c2 = st.columns(2)
                 nome = c1.text_input(f"Cassa {i}", riga["Cassa"], disabled=True)
-                saldo = c2.number_input(f"Saldo {i}", value=riga["Saldo"])
+                saldo_raw = c2.text_input(f"Saldo {i}", value=str(riga["Saldo"]))
+                try:
+                    saldo = float(saldo_raw.replace(",", "."))
+                except ValueError:
+                    saldo = 0
+                    st.warning(f"⚠️ Inserisci un numero valido per {riga['Cassa']}")
                 nuove_righe.append([nome, saldo])
 
-            salva = st.form_submit_button("Salva saldi")
+            st.markdown("---")
+            raw_paste = st.text_area("📋 Incolla qui dati da Excel (una riga per cassa, separati da tab o spazio)", placeholder="Contanti	300,00
+Banca Intesa	1250,00")
+
+            if raw_paste:
+                for riga in raw_paste.strip().split("
+"):
+                    parts = riga.strip().replace("	", " ").split()
+                    if len(parts) >= 2:
+                        nome = " ".join(parts[:-1])
+                        try:
+                            saldo = float(parts[-1].replace(",", "."))
+                            nuove_righe.append([nome, saldo])
+                        except:
+                            st.warning(f"⚠️ Saldo non valido nella riga: {riga}")
+
+            salva = st.form_submit_button("💾 Salva saldi")
             if salva:
                 ws["estratti"].clear()
                 ws["estratti"].append_row(["Cassa", "Saldo dichiarato"])
