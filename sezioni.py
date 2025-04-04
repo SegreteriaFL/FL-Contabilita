@@ -3,6 +3,7 @@ import pandas as pd
 import gspread
 from google.oauth2 import service_account
 import matplotlib.pyplot as plt
+import time
 
 SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
 
@@ -11,6 +12,12 @@ def format_euro(valore):
         return f"{valore:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") + " €"
     except:
         return valore
+
+def parse_italian_number(val):
+    val = str(val).strip()
+    if "," in val:
+        val = val.replace(".", "").replace(",", ".")
+    return round(float(val), 2)
 
 @st.cache_resource
 def get_worksheet():
@@ -54,7 +61,7 @@ def mostra_nuovo_movimento(ruolo):
         cassa = st.selectbox("Cassa", ["— Seleziona —"] + casse)
         importo_raw = st.text_input("Importo", value="0,00")
         try:
-            importo = float(importo_raw.replace(".", "").replace(",", "."))
+            importo = parse_italian_number(importo_raw)
         except ValueError:
             importo = 0
             st.warning("⚠️ Inserisci un numero valido (es. 1.234,56)")
@@ -153,7 +160,7 @@ def mostra_saldi_cassa(ruolo):
                 saldo_input = "{:.2f}".format(riga["Saldo"]).replace(".", ",")
                 saldo_raw = c2.text_input(f"Saldo {i}", value=saldo_input)
                 try:
-                    saldo = round(float(saldo_raw.replace(".", "").replace(",", ".")), 2)
+                    saldo = parse_italian_number(saldo_raw)
                 except ValueError:
                     saldo = 0
                     st.warning(f"⚠️ Inserisci un numero valido per {riga['Cassa']}")
@@ -168,9 +175,7 @@ def mostra_saldi_cassa(ruolo):
                     if len(parts) >= 2:
                         nome = " ".join(parts[:-1])
                         try:
-                            val = parts[-1].strip()
-                            val_clean = val.replace(".", "").replace(",", ".")
-                            saldo = round(float(val_clean), 2)
+                            saldo = parse_italian_number(parts[-1])
                             nuove_righe.append([nome, saldo])
                         except:
                             st.warning(f"⚠️ Saldo non valido nella riga: {riga}")
@@ -179,8 +184,10 @@ def mostra_saldi_cassa(ruolo):
             if salva:
                 ws["estratti"].clear()
                 ws["estratti"].append_row(["Cassa", "Saldo dichiarato"])
+                time.sleep(0.5)
                 for r in nuove_righe:
                     ws["estratti"].append_row(r)
+                    time.sleep(0.5)
                 st.success("✅ Saldi aggiornati.")
                 try: st.rerun()
                 except Exception: st.experimental_rerun()
