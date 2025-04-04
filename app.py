@@ -1,7 +1,7 @@
 import streamlit as st
 from sezioni import mostra_prima_nota, mostra_dashboard, mostra_rendiconto
 
-st.set_page_config(page_title="Contabilità ETS", layout="wide")
+st.set_page_config(page_title="Contabilita ETS", layout="wide")
 
 # Menu simulato (puoi sostituire con login reale in futuro)
 ruolo = st.sidebar.selectbox("Ruolo", ["lettore", "tesoriere", "superadmin"])
