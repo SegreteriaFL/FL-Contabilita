@@ -42,7 +42,17 @@ def mostra_prima_nota(ruolo):
     df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce")
     df["Importo"] = df["Importo"].apply(format_euro)
     st.title("📒 Prima Nota")
-    st.dataframe(df)
+    
+    for idx, row in df.iterrows():
+        col1, col2 = st.columns([10, 1])
+        with col1:
+            st.write(row)
+        with col2:
+            if st.button("✏️", key=f"modifica_{idx}"):
+                st.info(f"Modifica movimento {idx} (prossimamente)")
+            if st.button("🗑️", key=f"elimina_{idx}"):
+                st.warning(f"Elimina movimento {idx} (prossimamente)")
+    
 
 def mostra_nuovo_movimento(ruolo):
     if ruolo not in ["tesoriere", "superadmin"]:
