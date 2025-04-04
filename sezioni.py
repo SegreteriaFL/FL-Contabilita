@@ -7,13 +7,14 @@ import matplotlib.pyplot as plt
 SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
 
 @st.cache_resource
-def get_worksheet(sheet_name):
+def get_worksheet():
     creds = service_account.Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
         scopes=["https://www.googleapis.com/auth/spreadsheets"]
     )
     client = gspread.authorize(creds)
-    sheet = client.open(sheet_name)
+    sheet = client.open_by_key(SHEET_ID)
+
     return {
         "movimenti": sheet.worksheet("prima_nota"),
         "causali": sheet.worksheet("rif causale"),
@@ -22,7 +23,7 @@ def get_worksheet(sheet_name):
     }
 
 def mostra_prima_nota(ruolo):
-    ws = get_worksheet(SHEET_NAME)
+    ws = get_worksheet()
     df = pd.DataFrame(ws["movimenti"].get_all_records())
 
     st.title("📒 Prima Nota")
@@ -44,7 +45,7 @@ def mostra_prima_nota(ruolo):
                 st.success("Movimento salvato!")
 
 def mostra_dashboard():
-    ws = get_worksheet(SHEET_NAME)
+    ws = get_worksheet()
     df = pd.DataFrame(ws["movimenti"].get_all_records())
     st.title("📊 Dashboard")
 
@@ -63,7 +64,7 @@ def mostra_dashboard():
     st.pyplot(fig)
 
 def mostra_rendiconto():
-    ws = get_worksheet(SHEET_NAME)
+    ws = get_worksheet()
     df = pd.DataFrame(ws["movimenti"].get_all_records())
     st.title("📄 Rendiconto ETS")
 
