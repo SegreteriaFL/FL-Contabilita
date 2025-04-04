@@ -134,7 +134,7 @@ def mostra_saldi_cassa(ruolo):
             for i, riga in enumerate(nuova_tabella):
                 c1, c2 = st.columns(2)
                 nome = c1.text_input(f"Cassa {i}", riga["Cassa"], disabled=True)
-                saldo_raw = c2.text_input(f"Saldo {i}", value=str(riga["Saldo"]))
+                saldo_raw = c2.text_input(f"Saldo {i}", value="{:.2f}".format(riga["Saldo"]).replace(".", ","))
                 try:
                     saldo = float(saldo_raw.replace(",", "."))
                 except ValueError:
