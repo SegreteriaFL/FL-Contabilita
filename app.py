@@ -1,3 +1,4 @@
+# App funge!
 import streamlit as st
 from sezioni import mostra_prima_nota, mostra_dashboard, mostra_rendiconto
 
