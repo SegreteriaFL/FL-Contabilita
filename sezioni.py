@@ -5,6 +5,9 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
+# --- Costante per apertura file ---
+SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
+
 # --- Connessione a Google Sheets ---
 def get_worksheet():
     try:
@@ -13,8 +16,8 @@ def get_worksheet():
             scopes=["https://www.googleapis.com/auth/spreadsheets"],
         )
         gc = gspread.authorize(credentials)
-        sh = gc.open("Contabilità ETS 2024")  # Nome corretto del file
-        return sh.worksheet("prima_nota")     # Nome corretto del foglio
+        sh = gc.open_by_key(SHEET_ID)
+        return sh.worksheet("prima_nota")
     except Exception as e:
         st.error("❌ Errore durante la connessione a Google Sheets.")
         st.exception(e)
