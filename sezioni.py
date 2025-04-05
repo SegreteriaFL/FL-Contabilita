@@ -34,53 +34,68 @@ def update_sheet(dataframe):
 
 def mostra_prima_nota(ruolo):
     st.header("📒 Prima Nota")
-    try:
-        st.info("🔍 Checkpoint 1: Inizio funzione")
-        df, ws = load_data()
-        st.success("✅ Caricati dati dal foglio. Righe: " + str(len(df)))
 
+    try:
+        df, ws = load_data()
         df_display = df.copy()
         df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
 
         gb = GridOptionsBuilder.from_dataframe(df_display)
-        gb.configure_selection("single")
+        gb.configure_selection("multiple", use_checkbox=True)
         gb.configure_grid_options(domLayout='normal')
         gb.configure_pagination()
         grid_options = gb.build()
-
-        st.info("🔍 Checkpoint 2: Prima di AgGrid")
 
         grid_response = AgGrid(
             df_display,
             gridOptions=grid_options,
             update_mode=GridUpdateMode.SELECTION_CHANGED,
             fit_columns_on_grid_load=True,
-            selection_mode="single",
-            data_return_mode=DataReturnMode.FILTERED
+            data_return_mode=DataReturnMode.FILTERED,
+            allow_unsafe_jscode=True,
+            theme="streamlit"
         )
-
-        st.info("🔍 Checkpoint 3: Dopo AgGrid")
 
         selected = grid_response["selected_rows"]
 
-        with st.expander("🧪 Debug AgGrid"):
-            st.write(grid_response)
+        st.divider()
+        st.subheader("🛠️ Azioni disponibili")
 
-        col1, col2 = st.columns(2)
+        if isinstance(selected, list) and len(selected) == 1:
+            riga = selected[0]
+            st.success("✅ Riga selezionata:")
+            st.json(riga)
 
-        with col1:
-            if isinstance(selected, list) and len(selected) > 0:
-                st.success("✅ Riga selezionata")
-                st.json(selected[0])
-            else:
-                st.info("ℹ️ Nessuna riga selezionata")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✏️ Modifica riga"):
+                    st.warning("🔧 Modifica ancora non implementata in questa versione.")
+            with col2:
+                if st.button("🗑️ Elimina riga"):
+                    try:
+                        condizione = (
+                            (df["Data"] == riga["Data"]) &
+                            (df["Causale"] == riga["Causale"]) &
+                            (df["Centro"] == riga["Centro"]) &
+                            (df["Descrizione"] == riga["Descrizione"]) &
+                            (df["Cassa"] == riga["Cassa"]) &
+                            (df["Note"] == riga["Note"])
+                        )
+                        df = df[~condizione]
+                        update_sheet(df)
+                        st.success("🗑️ Riga eliminata con successo.")
+                        st.experimental_rerun()
+                    except Exception as e:
+                        st.error("❌ Errore durante l'eliminazione.")
+                        st.exception(e)
 
-        with col2:
-            if isinstance(selected, list) and len(selected) > 0 and st.button("🗑️ Elimina riga"):
-                st.warning("🔒 Elimina disattivato in debug")
+        elif isinstance(selected, list) and len(selected) > 1:
+            st.warning("❗ Seleziona una sola riga per eseguire le azioni.")
+        else:
+            st.info("ℹ️ Nessuna riga selezionata.")
 
     except Exception as e:
-        st.error("❌ Errore in mostra_prima_nota()")
+        st.error("❌ Errore generale nella sezione Prima Nota.")
         st.exception(e)
 
 def mostra_dashboard():
