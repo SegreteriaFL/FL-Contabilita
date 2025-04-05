@@ -5,10 +5,8 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
-# --- Costante per apertura file ---
 SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
 
-# --- Connessione a Google Sheets ---
 def get_worksheet():
     try:
         credentials = Credentials.from_service_account_info(
@@ -23,27 +21,22 @@ def get_worksheet():
         st.exception(e)
         st.stop()
 
-# --- Caricamento dati ---
 def load_data():
     try:
         ws = get_worksheet()
         records = ws.get_all_records()
         df = pd.DataFrame(records)
-
         df["Importo"] = df["Importo"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
         df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce").fillna(0.0)
-
         df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
         df["Mese"] = df["Data"].dt.strftime("%Y-%m")
         df["Data"] = df["Data"].dt.strftime("%d/%m/%Y")
-
         return df, ws
     except Exception as e:
         st.error("❌ Errore durante il caricamento dei dati.")
         st.exception(e)
         st.stop()
 
-# --- Salvataggio dati aggiornati ---
 def update_sheet(dataframe):
     try:
         worksheet = get_worksheet()
@@ -54,12 +47,10 @@ def update_sheet(dataframe):
         st.exception(e)
         st.stop()
 
-# --- Sezione: Prima Nota ---
 def mostra_prima_nota(ruolo):
     st.header("📒 Prima Nota")
 
     df, ws = load_data()
-
     df_display = df.copy()
     df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
 
@@ -96,7 +87,7 @@ def mostra_prima_nota(ruolo):
     col1, col2 = st.columns(2)
 
     with col1:
-        if selected:
+        if isinstance(selected, list) and len(selected) > 0:
             st.success("Hai selezionato una riga.")
             if st.button("✏️ Modifica riga"):
                 riga = selected[0]
@@ -133,14 +124,13 @@ def mostra_prima_nota(ruolo):
             st.info("Seleziona una riga per modificarla o eliminarla.")
 
     with col2:
-        if selected and st.button("🗑️ Elimina riga"):
+        if isinstance(selected, list) and len(selected) > 0 and st.button("🗑️ Elimina riga"):
             riga = selected[0]
             df = df[~((df["Data"] == riga["Data"]) & (df["Descrizione"] == riga["Descrizione"]) & (df_display["Importo"] == riga["Importo"]))]
             update_sheet(df)
             st.success("Riga eliminata.")
             st.experimental_rerun()
 
-# --- Sezioni placeholder ---
 def mostra_dashboard():
     st.header("📊 Dashboard")
     st.warning("🛠️ Questa sezione è in fase di sviluppo.")
