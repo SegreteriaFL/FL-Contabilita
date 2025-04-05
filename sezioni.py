@@ -54,7 +54,8 @@ def mostra_prima_nota(ruolo):
             df_display,
             gridOptions=grid_options,
             update_mode=GridUpdateMode.SELECTION_CHANGED,
-            fit_columns_on_grid_load=True
+            fit_columns_on_grid_load=True,
+            selection_mode="single"
         )
 
         st.info("🔍 Checkpoint 3: Dopo AgGrid")
