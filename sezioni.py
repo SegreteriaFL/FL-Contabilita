@@ -2,41 +2,54 @@ import streamlit as st
 import pandas as pd
 import gspread
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-from google.oauth2 import service_account
+from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # --- Connessione a Google Sheets ---
 def get_worksheet():
-    credentials = service_account.Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
-        scopes=["https://www.googleapis.com/auth/spreadsheets"],
-    )
-    gc = gspread.authorize(credentials)
-    sh = gc.open("Prima Nota 2024")
-    return sh.worksheet("prima_nota_2024")
+    try:
+        credentials = Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"],
+            scopes=["https://www.googleapis.com/auth/spreadsheets"],
+        )
+        gc = gspread.authorize(credentials)
+        sh = gc.open("Contabilità ETS 2024")  # Nome corretto del file
+        return sh.worksheet("prima_nota")     # Nome corretto del foglio
+    except Exception as e:
+        st.error("❌ Errore durante la connessione a Google Sheets.")
+        st.exception(e)
+        st.stop()
 
 # --- Caricamento dati ---
 def load_data():
-    ws = get_worksheet()
-    records = ws.get_all_records()
-    df = pd.DataFrame(records)
+    try:
+        ws = get_worksheet()
+        records = ws.get_all_records()
+        df = pd.DataFrame(records)
 
-    # Importo numerico
-    df["Importo"] = df["Importo"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
-    df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce").fillna(0.0)
+        df["Importo"] = df["Importo"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
+        df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce").fillna(0.0)
 
-    # Data in datetime + formato italiano
-    df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
-    df["Mese"] = df["Data"].dt.strftime("%Y-%m")
-    df["Data"] = df["Data"].dt.strftime("%d/%m/%Y")
+        df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
+        df["Mese"] = df["Data"].dt.strftime("%Y-%m")
+        df["Data"] = df["Data"].dt.strftime("%d/%m/%Y")
 
-    return df, ws
+        return df, ws
+    except Exception as e:
+        st.error("❌ Errore durante il caricamento dei dati.")
+        st.exception(e)
+        st.stop()
 
-# --- Scrittura su Google Sheet ---
+# --- Salvataggio dati aggiornati ---
 def update_sheet(dataframe):
-    worksheet = get_worksheet()
-    worksheet.clear()
-    worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
+    try:
+        worksheet = get_worksheet()
+        worksheet.clear()
+        worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
+    except Exception as e:
+        st.error("❌ Errore durante l'aggiornamento dei dati su Google Sheets.")
+        st.exception(e)
+        st.stop()
 
 # --- Sezione: Prima Nota ---
 def mostra_prima_nota(ruolo):
@@ -44,7 +57,6 @@ def mostra_prima_nota(ruolo):
 
     df, ws = load_data()
 
-    # Per visualizzazione
     df_display = df.copy()
     df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
 
