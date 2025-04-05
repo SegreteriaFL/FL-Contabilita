@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
@@ -55,7 +55,8 @@ def mostra_prima_nota(ruolo):
             gridOptions=grid_options,
             update_mode=GridUpdateMode.SELECTION_CHANGED,
             fit_columns_on_grid_load=True,
-            selection_mode="single"
+            selection_mode="single",
+            data_return_mode=DataReturnMode.FILTERED
         )
 
         st.info("🔍 Checkpoint 3: Dopo AgGrid")
