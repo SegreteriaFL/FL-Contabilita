@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
@@ -33,46 +32,50 @@ def update_sheet(dataframe):
     worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
 
 def mostra_prima_nota(ruolo):
-    st.header("📒 Prima Nota")
+    st.header("📒 Prima Nota (Editor stabile)")
 
     try:
         df, ws = load_data()
         df_display = df.copy()
         df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
 
-        gb = GridOptionsBuilder.from_dataframe(df_display)
-        gb.configure_selection("multiple", use_checkbox=True)
-        gb.configure_grid_options(domLayout='normal')
-        gb.configure_pagination()
-        grid_options = gb.build()
+        df_display["✔️ Seleziona"] = False  # colonna per selezione
 
-        grid_response = AgGrid(
+        edited_df = st.data_editor(
             df_display,
-            gridOptions=grid_options,
-            update_mode=GridUpdateMode.SELECTION_CHANGED,
-            fit_columns_on_grid_load=True,
-            data_return_mode=DataReturnMode.FILTERED,
-            allow_unsafe_jscode=True,
-            theme="streamlit"
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            disabled=["Data", "Mese"],  # disattiviamo colonne chiave
+            column_config={
+                "✔️ Seleziona": st.column_config.CheckboxColumn(required=False)
+            }
         )
 
-        selected = grid_response["selected_rows"]
+        selezionate = edited_df[edited_df["✔️ Seleziona"] == True]
 
         st.divider()
         st.subheader("🛠️ Azioni disponibili")
 
-        if isinstance(selected, list) and len(selected) == 1:
-            riga = selected[0]
+        if len(selezionate) == 1:
+            riga = selezionate.iloc[0]
             st.success("✅ Riga selezionata:")
-            st.json(riga)
+            st.json(riga.to_dict())
 
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✏️ Modifica riga"):
-                    st.warning("🔧 Modifica ancora non implementata in questa versione.")
-            with col2:
-                if st.button("🗑️ Elimina riga"):
+            with st.form("modifica_editor"):
+                data_dt = datetime.strptime(riga["Data"], "%d/%m/%Y")
+                nuova_data = st.date_input("Data", data_dt)
+                nuova_causale = st.text_input("Causale", riga["Causale"])
+                nuovo_centro = st.text_input("Centro", riga["Centro"])
+                nuovo_importo = st.text_input("Importo", riga["Importo"])
+                nuova_descrizione = st.text_input("Descrizione", riga["Descrizione"])
+                nuova_cassa = st.text_input("Cassa", riga["Cassa"])
+                nuove_note = st.text_input("Note", riga["Note"])
+
+                submit = st.form_submit_button("💾 Salva modifiche")
+                if submit:
                     try:
+                        parsed_importo = float(nuovo_importo.replace(".", "").replace(",", "."))
                         condizione = (
                             (df["Data"] == riga["Data"]) &
                             (df["Causale"] == riga["Causale"]) &
@@ -81,16 +84,44 @@ def mostra_prima_nota(ruolo):
                             (df["Cassa"] == riga["Cassa"]) &
                             (df["Note"] == riga["Note"])
                         )
-                        df = df[~condizione]
+                        index = df[condizione].index[0]
+                        df.loc[index] = [
+                            nuova_data.strftime("%d/%m/%Y"),
+                            nuova_causale,
+                            nuovo_centro,
+                            parsed_importo,
+                            nuova_descrizione,
+                            nuova_cassa,
+                            nuove_note,
+                            nuova_data.strftime("%Y-%m")
+                        ]
                         update_sheet(df)
-                        st.success("🗑️ Riga eliminata con successo.")
+                        st.success("✅ Modifica salvata.")
                         st.experimental_rerun()
                     except Exception as e:
-                        st.error("❌ Errore durante l'eliminazione.")
+                        st.error("❌ Errore durante la modifica.")
                         st.exception(e)
 
-        elif isinstance(selected, list) and len(selected) > 1:
-            st.warning("❗ Seleziona una sola riga per eseguire le azioni.")
+            if st.button("🗑️ Elimina riga"):
+                try:
+                    condizione = (
+                        (df["Data"] == riga["Data"]) &
+                        (df["Causale"] == riga["Causale"]) &
+                        (df["Centro"] == riga["Centro"]) &
+                        (df["Descrizione"] == riga["Descrizione"]) &
+                        (df["Cassa"] == riga["Cassa"]) &
+                        (df["Note"] == riga["Note"])
+                    )
+                    df = df[~condizione]
+                    update_sheet(df)
+                    st.success("🗑️ Riga eliminata.")
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error("❌ Errore durante eliminazione.")
+                    st.exception(e)
+
+        elif len(selezionate) > 1:
+            st.warning("❗ Seleziona solo una riga per eseguire le azioni.")
         else:
             st.info("ℹ️ Nessuna riga selezionata.")
 
