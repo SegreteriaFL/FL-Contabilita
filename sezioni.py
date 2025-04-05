@@ -34,110 +34,52 @@ def update_sheet(dataframe):
 
 def mostra_prima_nota(ruolo):
     st.header("📒 Prima Nota")
-    df, ws = load_data()
+    try:
+        st.info("🔍 Checkpoint 1: Inizio funzione")
+        df, ws = load_data()
+        st.success("✅ Caricati dati dal foglio. Righe: " + str(len(df)))
 
-    df_display = df.copy()
-    df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
+        df_display = df.copy()
+        df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
 
-    gb = GridOptionsBuilder.from_dataframe(df_display)
-    gb.configure_selection("single")
-    gb.configure_grid_options(domLayout='normal')
-    gb.configure_pagination()
-    grid_options = gb.build()
+        gb = GridOptionsBuilder.from_dataframe(df_display)
+        gb.configure_selection("single")
+        gb.configure_grid_options(domLayout='normal')
+        gb.configure_pagination()
+        grid_options = gb.build()
 
-    custom_css = {
-        ".ag-row-green": {"background-color": "#d4f7dc !important"},
-        ".ag-row-red": {"background-color": "#f7d4d4 !important"}
-    }
+        st.info("🔍 Checkpoint 2: Prima di AgGrid")
 
-    def get_row_style(row):
-        imp = row["Importo"].replace(".", "").replace(",", ".")
-        try:
-            return 'ag-row-green' if float(imp) >= 0 else 'ag-row-red'
-        except:
-            return ''
+        grid_response = AgGrid(
+            df_display,
+            gridOptions=grid_options,
+            update_mode=GridUpdateMode.SELECTION_CHANGED,
+            fit_columns_on_grid_load=True
+        )
 
-    grid_response = AgGrid(
-        df_display,
-        gridOptions=grid_options,
-        update_mode=GridUpdateMode.SELECTION_CHANGED,
-        fit_columns_on_grid_load=True,
-        allow_unsafe_jscode=True,
-        custom_css=custom_css,
-        getRowStyle=get_row_style,
-    )
+        st.info("🔍 Checkpoint 3: Dopo AgGrid")
 
-    selected = grid_response["selected_rows"]
-    col1, col2 = st.columns(2)
+        selected = grid_response["selected_rows"]
 
-    with col1:
-        if isinstance(selected, list) and len(selected) > 0:
-            st.success("Hai selezionato una riga.")
-            if st.button("✏️ Modifica riga"):
-                try:
-                    riga = selected[0]
-                    condizione = (
-                        (df["Data"] == riga["Data"]) &
-                        (df["Causale"] == riga["Causale"]) &
-                        (df["Centro"] == riga["Centro"]) &
-                        (df["Descrizione"] == riga["Descrizione"]) &
-                        (df["Cassa"] == riga["Cassa"]) &
-                        (df["Note"] == riga["Note"])
-                    )
-                    index = df[condizione].index[0]
+        with st.expander("🧪 Debug AgGrid"):
+            st.write(grid_response)
 
-                    with st.form("modifica"):
-                        st.subheader("Modifica movimento")
-                        data_dt = datetime.strptime(riga["Data"], "%d/%m/%Y")
-                        nuova_data = st.date_input("Data", data_dt)
-                        nuova_causale = st.text_input("Causale", riga["Causale"])
-                        nuovo_centro = st.text_input("Centro", riga["Centro"])
-                        nuovo_importo = st.text_input("Importo", riga["Importo"])
-                        nuova_descrizione = st.text_input("Descrizione", riga["Descrizione"])
-                        nuova_cassa = st.text_input("Cassa", riga["Cassa"])
-                        nuove_note = st.text_input("Note", riga["Note"])
+        col1, col2 = st.columns(2)
 
-                        submit = st.form_submit_button("💾 Salva modifiche")
-                        if submit:
-                            parsed_importo = float(nuovo_importo.replace(".", "").replace(",", "."))
-                            df.loc[index] = [
-                                nuova_data.strftime("%d/%m/%Y"),
-                                nuova_causale,
-                                nuovo_centro,
-                                parsed_importo,
-                                nuova_descrizione,
-                                nuova_cassa,
-                                nuove_note,
-                                nuova_data.strftime("%Y-%m")
-                            ]
-                            update_sheet(df)
-                            st.success("Riga aggiornata con successo.")
-                            st.experimental_rerun()
-                except Exception as e:
-                    st.error("❌ Errore durante la modifica della riga selezionata.")
-                    st.exception(e)
-        else:
-            st.info("Seleziona una riga per modificarla o eliminarla.")
+        with col1:
+            if isinstance(selected, list) and len(selected) > 0:
+                st.success("✅ Riga selezionata")
+                st.json(selected[0])
+            else:
+                st.info("ℹ️ Nessuna riga selezionata")
 
-    with col2:
-        if isinstance(selected, list) and len(selected) > 0 and st.button("🗑️ Elimina riga"):
-            try:
-                riga = selected[0]
-                condizione = (
-                    (df["Data"] == riga["Data"]) &
-                    (df["Causale"] == riga["Causale"]) &
-                    (df["Centro"] == riga["Centro"]) &
-                    (df["Descrizione"] == riga["Descrizione"]) &
-                    (df["Cassa"] == riga["Cassa"]) &
-                    (df["Note"] == riga["Note"])
-                )
-                df = df[~condizione]
-                update_sheet(df)
-                st.success("Riga eliminata.")
-                st.experimental_rerun()
-            except Exception as e:
-                st.error("❌ Errore durante l'eliminazione della riga.")
-                st.exception(e)
+        with col2:
+            if isinstance(selected, list) and len(selected) > 0 and st.button("🗑️ Elimina riga"):
+                st.warning("🔒 Elimina disattivato in debug")
+
+    except Exception as e:
+        st.error("❌ Errore in mostra_prima_nota()")
+        st.exception(e)
 
 def mostra_dashboard():
     st.header("📊 Dashboard")
