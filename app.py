@@ -1,8 +1,11 @@
 import streamlit as st
-import pandas as pd
-import gspread
-from google.oauth2.service_account import Credentials
-from sezioni import mostra_prima_nota, mostra_dashboard, mostra_rendiconto
+from sezioni import (
+    mostra_prima_nota,
+    mostra_dashboard,
+    mostra_rendiconto,
+    mostra_nuovo_movimento,
+    mostra_saldi_cassa
+)
 
 st.set_page_config(
     page_title="Gestionale Contabilità ETS",
@@ -25,7 +28,13 @@ st.sidebar.markdown(f"**Ruolo:** `{ruolo}`")
 
 # === Navigazione ===
 st.sidebar.markdown("### 📁 Sezioni")
-sezione = st.sidebar.radio("Naviga", ["Prima Nota", "Dashboard", "Rendiconto ETS"])
+sezione = st.sidebar.radio("Naviga", [
+    "Prima Nota",
+    "Dashboard",
+    "Rendiconto ETS",
+    "➕ Nuovo Movimento",
+    "✏️ Saldi Cassa"
+])
 
 # === Contenuto dinamico ===
 if sezione == "Prima Nota":
@@ -34,3 +43,7 @@ elif sezione == "Dashboard":
     mostra_dashboard()
 elif sezione == "Rendiconto ETS":
     mostra_rendiconto()
+elif sezione == "➕ Nuovo Movimento":
+    mostra_nuovo_movimento(ruolo)
+elif sezione == "✏️ Saldi Cassa":
+    mostra_saldi_cassa(ruolo)
