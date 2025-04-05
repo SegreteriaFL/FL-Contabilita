@@ -45,9 +45,10 @@ def mostra_prima_nota(ruolo):
     df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce")
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce").dt.strftime("%Y-%m-%d")
 
-    filtro_mese = st.selectbox("📅 Filtra per mese", options=["Tutti"] + sorted(df["Data"].str[:7].unique().tolist()))
+    df["Mese"] = pd.to_datetime(df["Data"], errors="coerce").dt.strftime("%Y-%m")
+filtro_mese = st.selectbox("📅 Filtra per mese", options=["Tutti"] + sorted(df["Mese"].dropna().unique().tolist()))
     if filtro_mese != "Tutti":
-        df = df[df["Data"].str.startswith(filtro_mese)]
+        df = df[df["Mese"] == filtro_mese]
 
     df["Modifica"] = "✏️"
     df["Elimina"] = "🗑️"
