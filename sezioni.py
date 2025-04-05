@@ -38,7 +38,7 @@ def update_sheet(dataframe):
     worksheet.clear()
     worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
 
-# --- Sezione Prima Nota ---
+# --- Sezione: Prima Nota ---
 def mostra_prima_nota(ruolo):
     st.header("📒 Prima Nota")
 
@@ -109,7 +109,7 @@ def mostra_prima_nota(ruolo):
                             nuova_descrizione,
                             nuova_cassa,
                             nuove_note,
-                            nuova_data.strftime("%Y-%m")  # aggiorna anche Mese
+                            nuova_data.strftime("%Y-%m")
                         ]
                         update_sheet(df)
                         st.success("Riga aggiornata con successo.")
@@ -124,3 +124,20 @@ def mostra_prima_nota(ruolo):
             update_sheet(df)
             st.success("Riga eliminata.")
             st.experimental_rerun()
+
+# --- Sezioni placeholder ---
+def mostra_dashboard():
+    st.header("📊 Dashboard")
+    st.warning("🛠️ Questa sezione è in fase di sviluppo.")
+
+def mostra_rendiconto():
+    st.header("📑 Rendiconto ETS")
+    st.warning("🛠️ Questa sezione è in fase di sviluppo.")
+
+def mostra_nuovo_movimento(ruolo):
+    st.header("➕ Nuovo Movimento")
+    st.warning("🛠️ Questa sezione è in fase di sviluppo.")
+
+def mostra_saldi_cassa(ruolo):
+    st.header("✏️ Saldi Cassa")
+    st.warning("🛠️ Questa sezione è in fase di sviluppo.")
