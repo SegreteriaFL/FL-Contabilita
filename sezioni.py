@@ -6,7 +6,6 @@ from google.oauth2 import service_account
 from datetime import datetime
 
 # --- Connessione a Google Sheets ---
-@st.cache_resource
 def get_worksheet():
     credentials = service_account.Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
@@ -22,22 +21,30 @@ def load_data():
     records = ws.get_all_records()
     df = pd.DataFrame(records)
 
+    # Importo numerico
     df["Importo"] = df["Importo"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce").fillna(0.0)
+
+    # Data in datetime + formato italiano
+    df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
+    df["Mese"] = df["Data"].dt.strftime("%Y-%m")
+    df["Data"] = df["Data"].dt.strftime("%d/%m/%Y")
+
     return df, ws
 
-# --- Salvataggio dati aggiornati ---
+# --- Scrittura su Google Sheet ---
 def update_sheet(dataframe):
     worksheet = get_worksheet()
     worksheet.clear()
     worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
 
-# --- Sezione: Prima Nota ---
-def mostra_prima_nota():
+# --- Sezione Prima Nota ---
+def mostra_prima_nota(ruolo):
     st.header("📒 Prima Nota")
 
     df, ws = load_data()
 
+    # Per visualizzazione
     df_display = df.copy()
     df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
 
@@ -53,7 +60,11 @@ def mostra_prima_nota():
     }
 
     def get_row_style(row):
-        return 'ag-row-green' if row["Importo"].replace(".", "").replace(",", ".").startswith("-") == False else 'ag-row-red'
+        imp = row["Importo"].replace(".", "").replace(",", ".")
+        try:
+            return 'ag-row-green' if float(imp) >= 0 else 'ag-row-red'
+        except:
+            return ''
 
     grid_response = AgGrid(
         df_display,
@@ -78,7 +89,8 @@ def mostra_prima_nota():
 
                 with st.form("modifica"):
                     st.subheader("Modifica movimento")
-                    nuova_data = st.date_input("Data", datetime.strptime(riga["Data"], "%Y-%m-%d"))
+                    data_dt = datetime.strptime(riga["Data"], "%d/%m/%Y")
+                    nuova_data = st.date_input("Data", data_dt)
                     nuova_causale = st.text_input("Causale", riga["Causale"])
                     nuovo_centro = st.text_input("Centro", riga["Centro"])
                     nuovo_importo = st.text_input("Importo", riga["Importo"])
@@ -90,25 +102,25 @@ def mostra_prima_nota():
                     if submit:
                         parsed_importo = float(nuovo_importo.replace(".", "").replace(",", "."))
                         df.loc[index] = [
-                            nuova_data.strftime("%Y-%m-%d"),
+                            nuova_data.strftime("%d/%m/%Y"),
                             nuova_causale,
                             nuovo_centro,
                             parsed_importo,
                             nuova_descrizione,
                             nuova_cassa,
                             nuove_note,
+                            nuova_data.strftime("%Y-%m")  # aggiorna anche Mese
                         ]
                         update_sheet(df)
                         st.success("Riga aggiornata con successo.")
                         st.experimental_rerun()
-
         else:
             st.info("Seleziona una riga per modificarla o eliminarla.")
 
     with col2:
         if selected and st.button("🗑️ Elimina riga"):
             riga = selected[0]
-            df = df[~((df["Data"] == riga["Data"]) & (df["Descrizione"] == riga["Descrizione"]) & (df["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".") == riga["Importo"]))]
+            df = df[~((df["Data"] == riga["Data"]) & (df["Descrizione"] == riga["Descrizione"]) & (df_display["Importo"] == riga["Importo"]))]
             update_sheet(df)
             st.success("Riga eliminata.")
             st.experimental_rerun()
