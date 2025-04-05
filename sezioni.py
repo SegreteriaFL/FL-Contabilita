@@ -43,10 +43,11 @@ def mostra_prima_nota(ruolo):
     st.title("📒 Prima Nota")
 
     df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce")
-    df["Data"] = pd.to_datetime(df["Data"], errors="coerce").dt.strftime("%Y-%m-%d")
+    df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
+    df["Mese"] = df["Data"].dt.strftime("%Y-%m")
+    df["Data"] = df["Data"].dt.strftime("%Y-%m-%d")
 
-    df["Mese"] = pd.to_datetime(df["Data"], errors="coerce").dt.strftime("%Y-%m")
-filtro_mese = st.selectbox("📅 Filtra per mese", options=["Tutti"] + sorted(df["Mese"].dropna().unique().tolist()))
+    filtro_mese = st.selectbox("📅 Filtra per mese", options=["Tutti"] + sorted(df["Mese"].dropna().unique().tolist()))
     if filtro_mese != "Tutti":
         df = df[df["Mese"] == filtro_mese]
 
@@ -73,7 +74,7 @@ filtro_mese = st.selectbox("📅 Filtra per mese", options=["Tutti"] + sorted(df
     selected = grid_response["selected_rows"]
     if selected:
         riga = selected[0]
-        ws_index = df.index[df["Data"] == riga["Data"]].tolist()[0] + 2  # header + 1
+        ws_index = df.index[df["Data"] == riga["Data"]].tolist()[0] + 2
         if st.button("❌ Conferma eliminazione riga selezionata"):
             ws["movimenti"].delete_rows(ws_index)
             st.success("Movimento eliminato.")
