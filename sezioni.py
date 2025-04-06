@@ -20,6 +20,11 @@ def load_data():
     ws = get_worksheet()
     records = ws.get_all_records()
     df = pd.DataFrame(records)
+
+    if "Importo" not in df.columns:
+        st.error("❌ La colonna 'Importo' non è presente nel foglio.")
+        return df, ws
+
     df["Importo"] = df["Importo"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce").fillna(0.0)
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
@@ -30,6 +35,7 @@ def load_data():
 def update_sheet(dataframe):
     worksheet = get_worksheet()
     worksheet.clear()
+    dataframe = dataframe.fillna("")  # FIX per NaN
     worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
 
 def mostra_prima_nota(ruolo):
