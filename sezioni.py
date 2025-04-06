@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import gspread
+from st_aggrid import AgGrid, GridUpdateMode, DataReturnMode
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
@@ -32,37 +33,40 @@ def update_sheet(dataframe):
     worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
 
 def mostra_prima_nota(ruolo):
-    st.header("📒 Prima Nota (Editor stabile)")
+    st.header("📒 Prima Nota")
 
     try:
         df, ws = load_data()
         df_display = df.copy()
         df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
 
-        df_display["✔️ Seleziona"] = False  # colonna per selezione
-
-        edited_df = st.data_editor(
+        grid_response = AgGrid(
             df_display,
-            use_container_width=True,
-            hide_index=True,
-            num_rows="dynamic",
-            disabled=["Data", "Mese"],  # disattiviamo colonne chiave
-            column_config={
-                "✔️ Seleziona": st.column_config.CheckboxColumn(required=False)
-            }
+            update_mode=GridUpdateMode.SELECTION_CHANGED,
+            data_return_mode=DataReturnMode.FILTERED,
+            fit_columns_on_grid_load=True,
+            allow_unsafe_jscode=True,
+            theme="streamlit",
+            enable_enterprise_modules=False,
+            editable=False,
+            height=500,
+            reload_data=True,
+            use_checkbox=True,
+            selection_mode="multiple"
         )
 
-        selezionate = edited_df[edited_df["✔️ Seleziona"] == True]
+        selected = grid_response["selected_rows"]
 
         st.divider()
         st.subheader("🛠️ Azioni disponibili")
 
-        if len(selezionate) == 1:
-            riga = selezionate.iloc[0]
+        if isinstance(selected, list) and len(selected) == 1:
+            riga = selected[0]
             st.success("✅ Riga selezionata:")
-            st.json(riga.to_dict())
+            st.json(riga)
 
-            with st.form("modifica_editor"):
+            with st.form("modifica_riga"):
+                st.subheader("✏️ Modifica movimento")
                 data_dt = datetime.strptime(riga["Data"], "%d/%m/%Y")
                 nuova_data = st.date_input("Data", data_dt)
                 nuova_causale = st.text_input("Causale", riga["Causale"])
@@ -96,7 +100,7 @@ def mostra_prima_nota(ruolo):
                             nuova_data.strftime("%Y-%m")
                         ]
                         update_sheet(df)
-                        st.success("✅ Modifica salvata.")
+                        st.success("✅ Modifiche salvate.")
                         st.experimental_rerun()
                     except Exception as e:
                         st.error("❌ Errore durante la modifica.")
@@ -114,14 +118,14 @@ def mostra_prima_nota(ruolo):
                     )
                     df = df[~condizione]
                     update_sheet(df)
-                    st.success("🗑️ Riga eliminata.")
+                    st.success("🗑️ Riga eliminata con successo.")
                     st.experimental_rerun()
                 except Exception as e:
-                    st.error("❌ Errore durante eliminazione.")
+                    st.error("❌ Errore durante l'eliminazione.")
                     st.exception(e)
 
-        elif len(selezionate) > 1:
-            st.warning("❗ Seleziona solo una riga per eseguire le azioni.")
+        elif isinstance(selected, list) and len(selected) > 1:
+            st.warning("❗ Seleziona solo una riga per modificare o eliminare.")
         else:
             st.info("ℹ️ Nessuna riga selezionata.")
 
