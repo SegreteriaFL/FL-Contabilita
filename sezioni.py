@@ -6,6 +6,7 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
+COLONNE_ATTESE = ["Data", "Causale", "Centro", "Importo", "Descrizione", "Cassa", "Note"]
 
 def get_worksheet():
     credentials = Credentials.from_service_account_info(
@@ -21,9 +22,14 @@ def load_data():
     records = ws.get_all_records()
     df = pd.DataFrame(records)
 
-    if "Importo" not in df.columns:
-        st.error("❌ La colonna 'Importo' non è presente nel foglio.")
+    if df.empty:
+        st.warning("⚠️ Il foglio 'prima_nota' è vuoto.")
         return df, ws
+
+    for col in COLONNE_ATTESE:
+        if col not in df.columns:
+            st.error(f"❌ Colonna mancante: '{col}' nel foglio.")
+            return df, ws
 
     df["Importo"] = df["Importo"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce").fillna(0.0)
@@ -34,8 +40,11 @@ def load_data():
 
 def update_sheet(dataframe):
     worksheet = get_worksheet()
-    worksheet.clear()
+    if dataframe.empty:
+        st.warning("⚠️ Dataset vuoto, annullato l'aggiornamento del foglio.")
+        return
     dataframe = dataframe.fillna("")  # FIX per NaN
+    worksheet.clear()
     worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
 
 def mostra_prima_nota(ruolo):
@@ -43,6 +52,9 @@ def mostra_prima_nota(ruolo):
 
     try:
         df, ws = load_data()
+        if df.empty or "Importo" not in df.columns:
+            return
+
         df_display = df.copy()
         df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
 
