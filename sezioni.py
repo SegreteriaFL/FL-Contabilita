@@ -17,7 +17,6 @@ def get_worksheet(nome="prima_nota"):
     sh = gc.open_by_key(SHEET_ID)
     return sh.worksheet(nome)
 
-def load_data():
     ws = get_worksheet("prima_nota")
     records = ws.get_all_records()
     if not records:
@@ -34,6 +33,27 @@ def load_data():
     df["Data"] = df["Data"].dt.strftime("%d/%m/%Y")
     return df, ws
 
+def load_data():
+    ws = get_worksheet()
+    records = ws.get_all_records()
+    df = pd.DataFrame(records)
+
+    # Gestione robusta importi (senza locale)
+    def parse_importo(x):
+        try:
+            if isinstance(x, (int, float)):
+                return float(x)
+            x = str(x).strip().replace("€", "").replace(" ", "")
+            x = x.replace(".", "").replace(",", ".")
+            return float(x)
+        except Exception:
+            return 0.0
+
+    df["Importo"] = df["Importo"].apply(parse_importo)
+    df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
+    df["Mese"] = df["Data"].dt.strftime("%Y-%m")
+    df["Data"] = df["Data"].dt.strftime("%d/%m/%Y")
+    return df, ws
 def update_sheet(dataframe):
     worksheet = get_worksheet("prima_nota")
     clean_df = dataframe.fillna("")
