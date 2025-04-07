@@ -1,4 +1,4 @@
-# commit: fix ImportError debug - aggiunto blocco try/except globale per mostrare eccezioni interne
+# commit: fix emoji crash - rimosso page_icon incompatibile e sistemata sintassi set_page_config
 
 import streamlit as st
 
@@ -12,14 +12,14 @@ try:
         mostra_saldi_cassa
     )
 except Exception as e:
-    st.error("\u274c Errore durante l'import di 'sezioni.py'")
+    st.error("❌ Errore durante l'import di 'sezioni.py'")
     st.exception(e)
     st.stop()
 
 st.set_page_config(
     page_title="Gestionale Contabilità ETS",
-    page_icon=":ledger:",  # emoji supportata nativamente da Streamlit
-    ...
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # === Login simulato ===
@@ -29,19 +29,19 @@ utenti = {
     "Anna Verdi (lettore)": "lettore"
 }
 
-st.sidebar.markdown("### \ud83d\udc64 Seleziona utente:")
+st.sidebar.markdown("### 👤 Seleziona utente:")
 utente = st.sidebar.selectbox("Utente:", list(utenti.keys()))
 ruolo = utenti[utente]
 st.sidebar.markdown(f"**Ruolo:** `{ruolo}`")
 
 # === Navigazione ===
-st.sidebar.markdown("### \ud83d\udcc1 Sezioni")
+st.sidebar.markdown("### 📁 Sezioni")
 sezione = st.sidebar.radio("Naviga", [
     "Prima Nota",
     "Dashboard",
     "Rendiconto ETS",
-    "\u2795 Nuovo Movimento",
-    "\u270f\ufe0f Saldi Cassa"
+    "➕ Nuovo Movimento",
+    "✏️ Saldi Cassa"
 ])
 
 # === Contenuto dinamico ===
@@ -51,7 +51,7 @@ elif sezione == "Dashboard":
     mostra_dashboard()
 elif sezione == "Rendiconto ETS":
     mostra_rendiconto()
-elif sezione == "\u2795 Nuovo Movimento":
+elif sezione == "➕ Nuovo Movimento":
     mostra_nuovo_movimento(ruolo)
-elif sezione == "\u270f\ufe0f Saldi Cassa":
+elif sezione == "✏️ Saldi Cassa":
     mostra_saldi_cassa(ruolo)
