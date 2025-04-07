@@ -205,3 +205,71 @@ def mostra_nuovo_movimento(ruolo):
     except Exception as e:
         st.error("Errore nell'inserimento movimento.")
         st.exception(e)
+
+
+def mostra_saldi_cassa(ruolo):
+    st.header("Saldi Cassa")
+    try:
+        df, _ = load_data()
+        saldo_per_cassa = df.groupby("Cassa")["Importo"].sum().reset_index()
+        saldo_per_cassa.columns = ["Cassa", "Saldo attuale"]
+
+        st.subheader("Saldo per cassa registrato in prima nota")
+        st.dataframe(saldo_per_cassa, use_container_width=True)
+
+        st.divider()
+        st.subheader("Modifica saldi estratto conto")
+
+        try:
+            foglio_saldi = get_worksheet("saldi estratto conto")
+        except Exception:
+            sh = gspread.authorize(
+                Credentials.from_service_account_info(
+                    st.secrets["gcp_service_account"],
+                    scopes=["https://www.googleapis.com/auth/spreadsheets"],
+                )
+            ).open_by_key(SHEET_ID)
+            foglio_saldi = sh.add_worksheet(title="saldi estratto conto", rows=100, cols=2)
+            foglio_saldi.update("A1:B1", [["Cassa", "Estratto conto"]])
+
+        records = foglio_saldi.get_all_records()
+        df_saldi = pd.DataFrame(records)
+
+        if df_saldi.empty:
+            df_saldi = pd.DataFrame({
+                "Cassa": saldo_per_cassa["Cassa"],
+                "Estratto conto": [0.0] * len(saldo_per_cassa)
+            })
+
+        df_edit = st.data_editor(
+            df_saldi,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            key="saldi_editor"
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Salva saldi estratto conto"):
+                foglio_saldi.clear()
+                foglio_saldi.update([df_edit.columns.values.tolist()] + df_edit.fillna("").values.tolist())
+                st.success("Saldi aggiornati correttamente.")
+
+        with col2:
+            if st.button("🗑️ Cancella tutti i saldi"):
+                foglio_saldi.clear()
+                foglio_saldi.update("A1:B1", [["Cassa", "Estratto conto"]])
+                st.warning("Saldi eliminati.")
+
+        st.divider()
+        st.subheader("Confronto saldo vs estratto conto")
+
+        if not df_edit.empty:
+            confronto = pd.merge(saldo_per_cassa, df_edit, on="Cassa", how="left")
+            confronto["Differenza"] = confronto["Saldo attuale"] - confronto["Estratto conto"].astype(float)
+            st.dataframe(confronto, use_container_width=True)
+
+    except Exception as e:
+        st.error("Errore nella sezione saldi.")
+        st.exception(e)
