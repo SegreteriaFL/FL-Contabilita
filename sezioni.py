@@ -208,7 +208,6 @@ def mostra_dashboard():
 ##
 
 
-def mostra_saldi_cassa(ruolo):
     st.header("Saldi Cassa")
     try:
         df, _ = load_data()
@@ -382,4 +381,68 @@ def mostra_rendiconto():
             st.warning("❗ Foglio 'saldi estratto conto' non trovato o non leggibile.")
     except Exception as e:
         st.error("Errore nel rendiconto.")
+        st.exception(e)
+def mostra_saldi_cassa(ruolo):
+    st.header("✏️ Saldi Cassa")
+    try:
+        df, _ = load_data()
+        saldo_per_cassa = df.groupby("Cassa")["Importo"].sum().reset_index()
+        saldo_per_cassa.columns = ["Cassa", "Saldo attuale"]
+        st.subheader("💰 Saldi calcolati dalla Prima Nota")
+        st.dataframe(saldo_per_cassa, use_container_width=True)
+
+        st.divider()
+        st.subheader("📥 Inserisci saldo reale da estratto conto")
+
+        # Valori fissi
+        elenco_casse = [
+            "Banco Posta",
+            "Cassa Contanti Sede",
+            "Unicredit Fiume di Pace",
+            "Unicredit Kimata",
+            "Unicredit Mari e Vulcani",
+            "Unicredit Nazionale",
+            "Conto PayPal",
+            "Accrediti su c/c da regolarizzare"
+        ]
+
+        form_data = {}
+        with st.form("form_saldi_estratti"):
+            for cassa in elenco_casse:
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    st.text_input("Cassa", value=cassa, disabled=True, key=f"label_{cassa}")
+                with col2:
+                    form_data[cassa] = st.text_input("Estratto conto (€)", key=f"saldo_{cassa}")
+            submitted = st.form_submit_button("💾 Salva tutti i saldi")
+
+        if submitted:
+            try:
+                output = [["Cassa", "Estratto conto"]]
+                for cassa in elenco_casse:
+                    val = form_data[cassa].replace(".", "").replace(",", ".").strip()
+                    parsed = float(val) if val else 0.0
+                    output.append([cassa, parsed])
+                foglio = get_worksheet("saldi estratto conto")
+                foglio.clear()
+                foglio.update(output)
+                st.success("✅ Saldi aggiornati correttamente.")
+            except Exception as e:
+                st.error("❌ Errore durante il salvataggio dei saldi.")
+                st.exception(e)
+
+        st.divider()
+        st.subheader("📊 Confronto saldo vs estratto conto")
+        try:
+            foglio_saldi = get_worksheet("saldi estratto conto")
+            df_saldi = pd.DataFrame(foglio_saldi.get_all_records())
+            confronto = pd.merge(saldo_per_cassa, df_saldi, on="Cassa", how="left")
+            confronto["Differenza"] = confronto["Saldo attuale"] - confronto["Estratto conto"].astype(float)
+            st.dataframe(confronto, use_container_width=True)
+        except Exception as e:
+            st.warning("⚠️ Impossibile leggere i saldi estratto conto.")
+            st.exception(e)
+
+    except Exception as e:
+        st.error("Errore generale nella sezione Saldi Cassa.")
         st.exception(e)
