@@ -1,5 +1,5 @@
 
-# commit: completata sezione Saldi Cassa con modifica saldi manuale e visualizzazione dettagliata
+# commit: reintegrata funzione mostra_prima_nota mancante + tutte le sezioni operative
 
 import streamlit as st
 import pandas as pd
@@ -9,7 +9,6 @@ from datetime import datetime
 
 SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
 
-
 def get_worksheet(nome="prima_nota"):
     credentials = Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
@@ -18,7 +17,6 @@ def get_worksheet(nome="prima_nota"):
     gc = gspread.authorize(credentials)
     sh = gc.open_by_key(SHEET_ID)
     return sh.worksheet(nome)
-
 
 def load_data():
     ws = get_worksheet("prima_nota")
@@ -37,97 +35,107 @@ def load_data():
     df["Data"] = df["Data"].dt.strftime("%d/%m/%Y")
     return df, ws
 
-
 def update_sheet(dataframe):
     worksheet = get_worksheet("prima_nota")
     clean_df = dataframe.fillna("")
     worksheet.clear()
     worksheet.update([clean_df.columns.values.tolist()] + clean_df.values.tolist())
 
-
 def leggi_riferimenti(nome_foglio):
     ws = get_worksheet(nome_foglio)
     valori = ws.col_values(1)
     return [v for v in valori if v.strip() != "" and v.strip().lower() != nome_foglio.lower()]
 
-def mostra_nuovo_movimento(ruolo):
-    st.header("Nuovo Movimento")
+def mostra_prima_nota(ruolo):
+    st.header("Prima Nota")
     try:
-        opzioni_cassa = leggi_riferimenti("rif cassa")
-        opzioni_causale = leggi_riferimenti("rif causale")
-        opzioni_centro = leggi_riferimenti("rif centro")
+        df, ws = load_data()
+        df_display = df.copy()
+        df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
+        df_display["Seleziona"] = False
 
-        with st.form("nuovo_movimento"):
-            data = st.date_input("Data")
-            causale = st.selectbox("Causale", opzioni_causale)
-            centro = st.selectbox("Centro", opzioni_centro)
-            importo = st.text_input("Importo")
-            descrizione = st.text_input("Descrizione")
-            cassa = st.selectbox("Cassa", opzioni_cassa)
-            note = st.text_input("Note")
-            submit = st.form_submit_button("Aggiungi")
-
-        if submit:
-            parsed = float(importo.replace(".", "").replace(",", "."))
-            nuova_riga = [
-                data.strftime("%d/%m/%Y"),
-                causale,
-                centro,
-                parsed,
-                descrizione,
-                cassa,
-                note,
-                data.strftime("%Y-%m")
-            ]
-            df, _ = load_data()
-            df.loc[len(df)] = nuova_riga
-            update_sheet(df)
-            st.success("Movimento aggiunto.")
-            st.experimental_rerun()
-    except Exception as e:
-        st.error("Errore nell'inserimento movimento.")
-        st.exception(e)
-def mostra_saldi_cassa(ruolo):
-    st.header("Saldi Cassa")
-    try:
-        df, _ = load_data()
-        saldo_per_cassa = df.groupby("Cassa")["Importo"].sum().reset_index()
-        saldo_per_cassa.columns = ["Cassa", "Saldo attuale"]
-
-        st.subheader("Saldo per cassa registrato in prima nota")
-        st.dataframe(saldo_per_cassa, use_container_width=True)
-
-        st.divider()
-        st.subheader("Modifica saldi estratto conto")
-
-        foglio_saldi = get_worksheet("saldi estratto conto")
-        records = foglio_saldi.get_all_records()
-        df_saldi = pd.DataFrame(records)
-
-        if df_saldi.empty:
-            df_saldi = pd.DataFrame({"Cassa": saldo_per_cassa["Cassa"], "Estratto conto": [0.0] * len(saldo_per_cassa)})
-
-        df_edit = st.data_editor(
-            df_saldi,
+        edited_df = st.data_editor(
+            df_display,
             use_container_width=True,
             hide_index=True,
             num_rows="dynamic",
-            key="saldi_editor"
+            disabled=["Data", "Mese"],
+            column_config={"Seleziona": st.column_config.CheckboxColumn(required=False)}
         )
 
-        if st.button("💾 Salva saldi estratto conto"):
-            foglio_saldi.clear()
-            foglio_saldi.update([df_edit.columns.values.tolist()] + df_edit.fillna("").values.tolist())
-            st.success("Saldi aggiornati correttamente.")
+        selezionate = edited_df[edited_df["Seleziona"] == True]
 
         st.divider()
-        st.subheader("Confronto saldo vs estratto conto")
+        st.subheader("Azioni disponibili")
 
-        if not df_edit.empty:
-            confronto = pd.merge(saldo_per_cassa, df_edit, on="Cassa", how="left")
-            confronto["Differenza"] = confronto["Saldo attuale"] - confronto["Estratto conto"].astype(float)
-            st.dataframe(confronto, use_container_width=True)
+        if len(selezionate) == 1:
+            riga = selezionate.iloc[0]
+            st.success("Riga selezionata:")
+            st.json(riga.to_dict())
+
+            with st.form("modifica_editor"):
+                data_dt = datetime.strptime(riga["Data"], "%d/%m/%Y")
+                nuova_data = st.date_input("Data", data_dt)
+                nuova_causale = st.text_input("Causale", riga["Causale"])
+                nuovo_centro = st.text_input("Centro", riga["Centro"])
+                nuovo_importo = st.text_input("Importo", riga["Importo"])
+                nuova_descrizione = st.text_input("Descrizione", riga["Descrizione"])
+                nuova_cassa = st.text_input("Cassa", riga["Cassa"])
+                nuove_note = st.text_input("Note", riga["Note"])
+
+                submit = st.form_submit_button("Salva modifiche")
+                if submit:
+                    try:
+                        parsed_importo = float(nuovo_importo.replace(".", "").replace(",", "."))
+                        condizione = (
+                            (df["Data"] == riga["Data"]) &
+                            (df["Causale"] == riga["Causale"]) &
+                            (df["Centro"] == riga["Centro"]) &
+                            (df["Descrizione"] == riga["Descrizione"]) &
+                            (df["Cassa"] == riga["Cassa"]) &
+                            (df["Note"] == riga["Note"])
+                        )
+                        index = df[condizione].index[0]
+                        df.loc[index] = [
+                            nuova_data.strftime("%d/%m/%Y"),
+                            nuova_causale,
+                            nuovo_centro,
+                            parsed_importo,
+                            nuova_descrizione,
+                            nuova_cassa,
+                            nuove_note,
+                            nuova_data.strftime("%Y-%m")
+                        ]
+                        update_sheet(df)
+                        st.success("Modifica salvata.")
+                        st.experimental_rerun()
+                    except Exception as e:
+                        st.error("Errore durante la modifica.")
+                        st.exception(e)
+
+            if st.button("Elimina riga"):
+                try:
+                    condizione = (
+                        (df["Data"] == riga["Data"]) &
+                        (df["Causale"] == riga["Causale"]) &
+                        (df["Centro"] == riga["Centro"]) &
+                        (df["Descrizione"] == riga["Descrizione"]) &
+                        (df["Cassa"] == riga["Cassa"]) &
+                        (df["Note"] == riga["Note"])
+                    )
+                    df = df[~condizione]
+                    update_sheet(df)
+                    st.success("Riga eliminata.")
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error("Errore durante eliminazione.")
+                    st.exception(e)
+
+        elif len(selezionate) > 1:
+            st.warning("Seleziona solo una riga per eseguire le azioni.")
+        else:
+            st.info("Nessuna riga selezionata.")
 
     except Exception as e:
-        st.error("Errore nella sezione saldi.")
+        st.error("Errore generale nella sezione Prima Nota.")
         st.exception(e)

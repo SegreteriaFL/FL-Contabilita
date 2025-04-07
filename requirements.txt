@@ -1,8 +1,7 @@
+
 streamlit
 pandas
 gspread
 google-auth
 matplotlib
 fpdf
-streamlit-option-menu
-streamlit-aggrid
