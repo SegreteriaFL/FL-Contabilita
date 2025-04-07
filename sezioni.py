@@ -1,5 +1,5 @@
 
-# commit: nuovo movimento usa fogli rif_cassa, rif_causale, rif_centro per i campi a discesa
+# commit: completata sezione Saldi Cassa con modifica saldi manuale e visualizzazione dettagliata
 
 import streamlit as st
 import pandas as pd
@@ -9,6 +9,7 @@ from datetime import datetime
 
 SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
 
+
 def get_worksheet(nome="prima_nota"):
     credentials = Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
@@ -17,6 +18,7 @@ def get_worksheet(nome="prima_nota"):
     gc = gspread.authorize(credentials)
     sh = gc.open_by_key(SHEET_ID)
     return sh.worksheet(nome)
+
 
 def load_data():
     ws = get_worksheet("prima_nota")
@@ -35,11 +37,13 @@ def load_data():
     df["Data"] = df["Data"].dt.strftime("%d/%m/%Y")
     return df, ws
 
+
 def update_sheet(dataframe):
     worksheet = get_worksheet("prima_nota")
     clean_df = dataframe.fillna("")
     worksheet.clear()
     worksheet.update([clean_df.columns.values.tolist()] + clean_df.values.tolist())
+
 
 def leggi_riferimenti(nome_foglio):
     ws = get_worksheet(nome_foglio)
@@ -82,4 +86,48 @@ def mostra_nuovo_movimento(ruolo):
             st.experimental_rerun()
     except Exception as e:
         st.error("Errore nell'inserimento movimento.")
+        st.exception(e)
+def mostra_saldi_cassa(ruolo):
+    st.header("Saldi Cassa")
+    try:
+        df, _ = load_data()
+        saldo_per_cassa = df.groupby("Cassa")["Importo"].sum().reset_index()
+        saldo_per_cassa.columns = ["Cassa", "Saldo attuale"]
+
+        st.subheader("Saldo per cassa registrato in prima nota")
+        st.dataframe(saldo_per_cassa, use_container_width=True)
+
+        st.divider()
+        st.subheader("Modifica saldi estratto conto")
+
+        foglio_saldi = get_worksheet("saldi estratto conto")
+        records = foglio_saldi.get_all_records()
+        df_saldi = pd.DataFrame(records)
+
+        if df_saldi.empty:
+            df_saldi = pd.DataFrame({"Cassa": saldo_per_cassa["Cassa"], "Estratto conto": [0.0] * len(saldo_per_cassa)})
+
+        df_edit = st.data_editor(
+            df_saldi,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            key="saldi_editor"
+        )
+
+        if st.button("💾 Salva saldi estratto conto"):
+            foglio_saldi.clear()
+            foglio_saldi.update([df_edit.columns.values.tolist()] + df_edit.fillna("").values.tolist())
+            st.success("Saldi aggiornati correttamente.")
+
+        st.divider()
+        st.subheader("Confronto saldo vs estratto conto")
+
+        if not df_edit.empty:
+            confronto = pd.merge(saldo_per_cassa, df_edit, on="Cassa", how="left")
+            confronto["Differenza"] = confronto["Saldo attuale"] - confronto["Estratto conto"].astype(float)
+            st.dataframe(confronto, use_container_width=True)
+
+    except Exception as e:
+        st.error("Errore nella sezione saldi.")
         st.exception(e)
