@@ -1,4 +1,3 @@
-
 # commit: reintegrata funzione mostra_prima_nota mancante + tutte le sezioni operative
 
 import streamlit as st
@@ -138,4 +137,32 @@ def mostra_prima_nota(ruolo):
 
     except Exception as e:
         st.error("Errore generale nella sezione Prima Nota.")
+        st.exception(e)
+
+
+def mostra_dashboard():
+    st.header("Dashboard")
+    try:
+        df, _ = load_data()
+        st.subheader("Totale per centro di costo")
+        totali = df.groupby("Centro")["Importo"].sum().sort_values(ascending=False)
+        st.bar_chart(totali)
+        st.subheader("Totale mensile")
+        mensili = df.groupby("Mese")["Importo"].sum()
+        st.line_chart(mensili)
+    except Exception as e:
+        st.error("Errore nella dashboard.")
+        st.exception(e)
+
+def mostra_rendiconto():
+    st.header("Rendiconto ETS")
+    try:
+        df, _ = load_data()
+        entrate = df[df["Importo"] > 0]["Importo"].sum()
+        uscite = -df[df["Importo"] < 0]["Importo"].sum()
+        st.metric("Entrate totali", f"€ {entrate:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.metric("Uscite totali", f"€ {uscite:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.metric("Saldo", f"€ {(entrate - uscite):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    except Exception as e:
+        st.error("Errore nel rendiconto.")
         st.exception(e)
