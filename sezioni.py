@@ -28,8 +28,9 @@ def load_data():
 
 def update_sheet(dataframe):
     worksheet = get_worksheet()
+    clean_df = dataframe.fillna("")  # Evita crash JSON con valori NaN
     worksheet.clear()
-    worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
+    worksheet.update([clean_df.columns.values.tolist()] + clean_df.values.tolist())
 
 def mostra_prima_nota(ruolo):
     st.header("📒 Prima Nota (Editor stabile)")
