@@ -1,12 +1,10 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from st_aggrid import AgGrid, GridUpdateMode, DataReturnMode
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
-COLONNE_ATTESE = ["Data", "Causale", "Centro", "Importo", "Descrizione", "Cassa", "Note"]
 
 def get_worksheet():
     credentials = Credentials.from_service_account_info(
@@ -21,16 +19,6 @@ def load_data():
     ws = get_worksheet()
     records = ws.get_all_records()
     df = pd.DataFrame(records)
-
-    if df.empty:
-        st.warning("⚠️ Il foglio 'prima_nota' è vuoto.")
-        return df, ws
-
-    for col in COLONNE_ATTESE:
-        if col not in df.columns:
-            st.error(f"❌ Colonna mancante: '{col}' nel foglio.")
-            return df, ws
-
     df["Importo"] = df["Importo"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce").fillna(0.0)
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
@@ -40,51 +28,41 @@ def load_data():
 
 def update_sheet(dataframe):
     worksheet = get_worksheet()
-    if dataframe.empty:
-        st.warning("⚠️ Dataset vuoto, annullato l'aggiornamento del foglio.")
-        return
-    dataframe = dataframe.fillna("")  # FIX per NaN
     worksheet.clear()
     worksheet.update([dataframe.columns.values.tolist()] + dataframe.values.tolist())
 
 def mostra_prima_nota(ruolo):
-    st.header("📒 Prima Nota")
+    st.header("📒 Prima Nota (Editor stabile)")
 
     try:
         df, ws = load_data()
-        if df.empty or "Importo" not in df.columns:
-            return
-
         df_display = df.copy()
         df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
 
-        grid_response = AgGrid(
+        df_display["✔️ Seleziona"] = False  # colonna per selezione
+
+        edited_df = st.data_editor(
             df_display,
-            update_mode=GridUpdateMode.SELECTION_CHANGED,
-            data_return_mode=DataReturnMode.FILTERED,
-            fit_columns_on_grid_load=True,
-            allow_unsafe_jscode=True,
-            theme="streamlit",
-            enable_enterprise_modules=False,
-            editable=False,
-            height=500,
-            reload_data=True,
-            use_checkbox=True,
-            selection_mode="multiple"
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            disabled=["Data", "Mese"],  # disattiviamo colonne chiave
+            column_config={
+                "✔️ Seleziona": st.column_config.CheckboxColumn(required=False)
+            }
         )
 
-        selected = grid_response["selected_rows"]
+        selezionate = edited_df[edited_df["✔️ Seleziona"] == True]
 
         st.divider()
         st.subheader("🛠️ Azioni disponibili")
 
-        if isinstance(selected, list) and len(selected) == 1:
-            riga = selected[0]
+        if len(selezionate) == 1:
+            riga = selezionate.iloc[0]
             st.success("✅ Riga selezionata:")
-            st.json(riga)
+            st.json(riga.to_dict())
 
-            with st.form("modifica_riga"):
-                st.subheader("✏️ Modifica movimento")
+            with st.form("modifica_editor"):
                 data_dt = datetime.strptime(riga["Data"], "%d/%m/%Y")
                 nuova_data = st.date_input("Data", data_dt)
                 nuova_causale = st.text_input("Causale", riga["Causale"])
@@ -118,7 +96,7 @@ def mostra_prima_nota(ruolo):
                             nuova_data.strftime("%Y-%m")
                         ]
                         update_sheet(df)
-                        st.success("✅ Modifiche salvate.")
+                        st.success("✅ Modifica salvata.")
                         st.experimental_rerun()
                     except Exception as e:
                         st.error("❌ Errore durante la modifica.")
@@ -136,14 +114,14 @@ def mostra_prima_nota(ruolo):
                     )
                     df = df[~condizione]
                     update_sheet(df)
-                    st.success("🗑️ Riga eliminata con successo.")
+                    st.success("🗑️ Riga eliminata.")
                     st.experimental_rerun()
                 except Exception as e:
-                    st.error("❌ Errore durante l'eliminazione.")
+                    st.error("❌ Errore durante eliminazione.")
                     st.exception(e)
 
-        elif isinstance(selected, list) and len(selected) > 1:
-            st.warning("❗ Seleziona solo una riga per modificare o eliminare.")
+        elif len(selezionate) > 1:
+            st.warning("❗ Seleziona solo una riga per eseguire le azioni.")
         else:
             st.info("ℹ️ Nessuna riga selezionata.")
 
