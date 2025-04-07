@@ -283,7 +283,6 @@ def mostra_saldi_cassa(ruolo):
     except Exception as e:
         st.error("Errore nella sezione saldi.")
         st.exception(e)
-def mostra_rendiconto():
     st.header("Rendiconto ETS")
     try:
         df, _ = load_data()
@@ -354,4 +353,33 @@ def mostra_nuovo_movimento(ruolo):
             st.button("➕ Inserisci nuovo movimento", on_click=lambda: st.session_state.update(nuovo_mov_inserito=False))
     except Exception as e:
         st.error("Errore nell'inserimento movimento.")
+        st.exception(e)
+def mostra_rendiconto():
+    st.header("Rendiconto ETS")
+    try:
+        df, _ = load_data()
+        entrate = df[df["Importo"] > 0]["Importo"].sum()
+        uscite = -df[df["Importo"] < 0]["Importo"].sum()
+        saldo_finale = entrate - uscite
+
+        st.metric("Entrate totali", f"€ {entrate:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.metric("Uscite totali", f"€ {uscite:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.metric("Saldo finale", f"€ {saldo_finale:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+
+        try:
+            foglio_saldi = get_worksheet("saldi estratto conto")
+            df_saldi = pd.DataFrame(foglio_saldi.get_all_records())
+            if not df_saldi.empty and "Estratto conto" in df_saldi.columns:
+                totale_estratti = df_saldi["Estratto conto"].astype(float).sum()
+                st.metric("Totale Estratti Conto", f"€ {totale_estratti:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                delta = saldo_finale - totale_estratti
+                st.metric("Differenza (Prova del 9)", f"€ {delta:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                if abs(delta) < 0.01:
+                    st.success("✅ Saldo combacia con gli estratti conto.")
+                else:
+                    st.warning("⚠️ Differenza riscontrata tra saldo e totale estratti conto.")
+        except Exception:
+            st.warning("❗ Foglio 'saldi estratto conto' non trovato o non leggibile.")
+    except Exception as e:
+        st.error("Errore nel rendiconto.")
         st.exception(e)
