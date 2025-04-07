@@ -166,3 +166,42 @@ def mostra_rendiconto():
     except Exception as e:
         st.error("Errore nel rendiconto.")
         st.exception(e)
+
+
+def mostra_nuovo_movimento(ruolo):
+    st.header("Nuovo Movimento")
+    try:
+        opzioni_cassa = leggi_riferimenti("rif cassa")
+        opzioni_causale = leggi_riferimenti("rif causale")
+        opzioni_centro = leggi_riferimenti("rif centro")
+
+        with st.form("nuovo_movimento"):
+            data = st.date_input("Data")
+            causale = st.selectbox("Causale", opzioni_causale)
+            centro = st.selectbox("Centro", opzioni_centro)
+            importo = st.text_input("Importo")
+            descrizione = st.text_input("Descrizione")
+            cassa = st.selectbox("Cassa", opzioni_cassa)
+            note = st.text_input("Note")
+            submit = st.form_submit_button("Aggiungi")
+
+        if submit:
+            parsed = float(importo.replace(".", "").replace(",", "."))
+            nuova_riga = [
+                data.strftime("%d/%m/%Y"),
+                causale,
+                centro,
+                parsed,
+                descrizione,
+                cassa,
+                note,
+                data.strftime("%Y-%m")
+            ]
+            df, _ = load_data()
+            df.loc[len(df)] = nuova_riga
+            update_sheet(df)
+            st.success("Movimento aggiunto.")
+            st.experimental_rerun()
+    except Exception as e:
+        st.error("Errore nell'inserimento movimento.")
+        st.exception(e)
