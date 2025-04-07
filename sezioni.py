@@ -1,4 +1,4 @@
-# commit: fix UnicodeEncodeError - rimosse emoji non compatibili da intestazioni e menu
+# commit: abilitate tutte le sezioni funzionanti - dashboard, rendiconto, nuovo movimento, saldi cassa
 
 import streamlit as st
 import pandas as pd
@@ -25,8 +25,10 @@ def load_data():
     if not records:
         raise ValueError("Il foglio 'prima_nota' è vuoto o senza intestazione valida.")
     df = pd.DataFrame(records)
-    if "Importo" not in df.columns:
-        raise KeyError("Colonna 'Importo' non trovata. Verifica l'intestazione del foglio.")
+    required_columns = ["Data", "Importo"]
+    for col in required_columns:
+        if col not in df.columns:
+            raise KeyError(f"Colonna richiesta '{col}' non trovata nel foglio. Verifica l'intestazione.")
     df["Importo"] = df["Importo"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce").fillna(0.0)
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
@@ -141,19 +143,74 @@ def mostra_prima_nota(ruolo):
 
 def mostra_dashboard():
     st.header("Dashboard")
-    st.info("Grafici e riepiloghi saranno disponibili qui.")
+    try:
+        df, _ = load_data()
+        st.subheader("Totale per centro di costo")
+        totali = df.groupby("Centro")["Importo"].sum().sort_values(ascending=False)
+        st.bar_chart(totali)
+        st.subheader("Totale mensile")
+        mensili = df.groupby("Mese")["Importo"].sum()
+        st.line_chart(mensili)
+    except Exception as e:
+        st.error("Errore nella dashboard.")
+        st.exception(e)
 
 
 def mostra_rendiconto():
     st.header("Rendiconto ETS")
-    st.info("Qui verrà generato automaticamente il rendiconto sezioni A e B.")
+    try:
+        df, _ = load_data()
+        entrate = df[df["Importo"] > 0]["Importo"].sum()
+        uscite = -df[df["Importo"] < 0]["Importo"].sum()
+        st.metric("Entrate totali", f"€ {entrate:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.metric("Uscite totali", f"€ {uscite:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.metric("Saldo", f"€ {(entrate - uscite):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    except Exception as e:
+        st.error("Errore nel rendiconto.")
+        st.exception(e)
 
 
 def mostra_nuovo_movimento(ruolo):
     st.header("Nuovo Movimento")
-    st.info("Modulo per inserire nuovi movimenti contabili. (In sviluppo)")
+    try:
+        with st.form("nuovo_movimento"):
+            data = st.date_input("Data")
+            causale = st.text_input("Causale")
+            centro = st.text_input("Centro")
+            importo = st.text_input("Importo")
+            descrizione = st.text_input("Descrizione")
+            cassa = st.text_input("Cassa")
+            note = st.text_input("Note")
+            submit = st.form_submit_button("Aggiungi")
+        if submit:
+            parsed = float(importo.replace(".", "").replace(",", "."))
+            nuova_riga = [
+                data.strftime("%d/%m/%Y"),
+                causale,
+                centro,
+                parsed,
+                descrizione,
+                cassa,
+                note,
+                data.strftime("%Y-%m")
+            ]
+            df, _ = load_data()
+            df.loc[len(df)] = nuova_riga
+            update_sheet(df)
+            st.success("Movimento aggiunto.")
+            st.experimental_rerun()
+    except Exception as e:
+        st.error("Errore nell'inserimento movimento.")
+        st.exception(e)
 
 
 def mostra_saldi_cassa(ruolo):
     st.header("Saldi Cassa")
-    st.info("Gestione dei saldi di cassa. (In sviluppo)")
+    try:
+        df, _ = load_data()
+        saldo_per_cassa = df.groupby("Cassa")["Importo"].sum()
+        st.subheader("Saldo per cassa")
+        st.bar_chart(saldo_per_cassa)
+    except Exception as e:
+        st.error("Errore nella sezione saldi.")
+        st.exception(e)
