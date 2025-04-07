@@ -73,11 +73,15 @@ def mostra_prima_nota(ruolo):
 df_display["Importo"] = df_display["Importo"].map(lambda x: "€ {:,.2f}".format(x).replace(",", "X").replace(".", ",").replace("X", "."))
         df_display["Seleziona"] = False
 
-        edited_df = st.data_editor(, column_order=[col for col in df_display.columns if col != 'Mese'])
+        edited_df = st.data_editor(
             df_display,
             use_container_width=True,
             hide_index=True,
             num_rows="dynamic",
+            disabled=["Data", "Mese"],
+            column_order=[col for col in df_display.columns if col != "Mese"],
+            column_config={"Seleziona": st.column_config.CheckboxColumn(required=False)}
+        )
             disabled=["Data", "Mese"],
             column_config={"Seleziona": st.column_config.CheckboxColumn(required=False)}
         )
