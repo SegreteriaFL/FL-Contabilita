@@ -1,4 +1,5 @@
-# commit: fix emoji crash - rimosso page_icon incompatibile e sistemata sintassi set_page_config
+
+# commit: fix import errore sezioni - garantita compatibilità e ordine funzioni aggiornato
 
 import streamlit as st
 
