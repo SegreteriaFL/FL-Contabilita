@@ -1,4 +1,4 @@
-# commit: implementate tutte le sezioni base - Prima Nota, Dashboard, Rendiconto, Nuovo Movimento, Saldi Cassa
+# commit: fix UnicodeEncodeError - rimosse emoji non compatibili da intestazioni e menu
 
 import streamlit as st
 import pandas as pd
@@ -43,12 +43,12 @@ def update_sheet(dataframe):
 
 
 def mostra_prima_nota(ruolo):
-    st.header("\ud83d\udcd2 Prima Nota")
+    st.header("Prima Nota")
     try:
         df, ws = load_data()
         df_display = df.copy()
         df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
-        df_display["\u2714\ufe0f Seleziona"] = False
+        df_display["Seleziona"] = False
 
         edited_df = st.data_editor(
             df_display,
@@ -57,18 +57,18 @@ def mostra_prima_nota(ruolo):
             num_rows="dynamic",
             disabled=["Data", "Mese"],
             column_config={
-                "\u2714\ufe0f Seleziona": st.column_config.CheckboxColumn(required=False)
+                "Seleziona": st.column_config.CheckboxColumn(required=False)
             }
         )
 
-        selezionate = edited_df[edited_df["\u2714\ufe0f Seleziona"] == True]
+        selezionate = edited_df[edited_df["Seleziona"] == True]
 
         st.divider()
-        st.subheader("\ud83d\udee0\ufe0f Azioni disponibili")
+        st.subheader("Azioni disponibili")
 
         if len(selezionate) == 1:
             riga = selezionate.iloc[0]
-            st.success("\u2705 Riga selezionata:")
+            st.success("Riga selezionata:")
             st.json(riga.to_dict())
 
             with st.form("modifica_editor"):
@@ -81,7 +81,7 @@ def mostra_prima_nota(ruolo):
                 nuova_cassa = st.text_input("Cassa", riga["Cassa"])
                 nuove_note = st.text_input("Note", riga["Note"])
 
-                submit = st.form_submit_button("\ud83d\udcc2 Salva modifiche")
+                submit = st.form_submit_button("Salva modifiche")
                 if submit:
                     try:
                         parsed_importo = float(nuovo_importo.replace(".", "").replace(",", "."))
@@ -105,13 +105,13 @@ def mostra_prima_nota(ruolo):
                             nuova_data.strftime("%Y-%m")
                         ]
                         update_sheet(df)
-                        st.success("\u2705 Modifica salvata.")
+                        st.success("Modifica salvata.")
                         st.experimental_rerun()
                     except Exception as e:
-                        st.error("\u274c Errore durante la modifica.")
+                        st.error("Errore durante la modifica.")
                         st.exception(e)
 
-            if st.button("\ud83d\udd1d\ufe0f Elimina riga"):
+            if st.button("Elimina riga"):
                 try:
                     condizione = (
                         (df["Data"] == riga["Data"]) &
@@ -123,37 +123,37 @@ def mostra_prima_nota(ruolo):
                     )
                     df = df[~condizione]
                     update_sheet(df)
-                    st.success("\ud83d\udd1d\ufe0f Riga eliminata.")
+                    st.success("Riga eliminata.")
                     st.experimental_rerun()
                 except Exception as e:
-                    st.error("\u274c Errore durante eliminazione.")
+                    st.error("Errore durante eliminazione.")
                     st.exception(e)
 
         elif len(selezionate) > 1:
-            st.warning("\u2757 Seleziona solo una riga per eseguire le azioni.")
+            st.warning("Seleziona solo una riga per eseguire le azioni.")
         else:
-            st.info("\u2139\ufe0f Nessuna riga selezionata.")
+            st.info("Nessuna riga selezionata.")
 
     except Exception as e:
-        st.error("\u274c Errore generale nella sezione Prima Nota.")
+        st.error("Errore generale nella sezione Prima Nota.")
         st.exception(e)
 
 
 def mostra_dashboard():
-    st.header("\ud83d\udcca Dashboard")
+    st.header("Dashboard")
     st.info("Grafici e riepiloghi saranno disponibili qui.")
 
 
 def mostra_rendiconto():
-    st.header("\ud83d\udcc9 Rendiconto ETS")
-    st.info("Qui verr\u00e0 generato automaticamente il rendiconto sezioni A e B.")
+    st.header("Rendiconto ETS")
+    st.info("Qui verrà generato automaticamente il rendiconto sezioni A e B.")
 
 
 def mostra_nuovo_movimento(ruolo):
-    st.header("\u2795 Nuovo Movimento")
+    st.header("Nuovo Movimento")
     st.info("Modulo per inserire nuovi movimenti contabili. (In sviluppo)")
 
 
 def mostra_saldi_cassa(ruolo):
-    st.header("\u270f\ufe0f Saldi Cassa")
+    st.header("Saldi Cassa")
     st.info("Gestione dei saldi di cassa. (In sviluppo)")
