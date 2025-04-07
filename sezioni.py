@@ -1,58 +1,140 @@
-# commit: fix ImportError debug - aggiunto blocco try/except globale per mostrare eccezioni interne
+# commit: fix update_sheet crash - aggiunto fillna("") per evitare NaN e migliorato controllo load_data()
 
 import streamlit as st
+import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
+from datetime import datetime
 
-# DEBUG: cattura errori generici oscurati da Streamlit Cloud
-try:
-    from sezioni import (
-        mostra_prima_nota,
-        mostra_dashboard,
-        mostra_rendiconto,
-        mostra_nuovo_movimento,
-        mostra_saldi_cassa
+SHEET_ID = "1Jg5g27twiVixfA8U10HvaTJ2HbAWS_YcbNB9VWdFwxo"
+
+
+def get_worksheet():
+    credentials = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=["https://www.googleapis.com/auth/spreadsheets"],
     )
-except Exception as e:
-    st.error("\u274c Errore durante l'import di 'sezioni.py'")
-    st.exception(e)
-    st.stop()
+    gc = gspread.authorize(credentials)
+    sh = gc.open_by_key(SHEET_ID)
+    return sh.worksheet("prima_nota")
 
-st.set_page_config(
-    page_title="Gestionale Contabilit\u00e0 ETS",
-    page_icon="\ud83d\udcd2",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
-# === Login simulato ===
-utenti = {
-    "Mario Rossi (superadmin)": "superadmin",
-    "Lucia Bianchi (tesoriere)": "tesoriere",
-    "Anna Verdi (lettore)": "lettore"
-}
+def load_data():
+    ws = get_worksheet()
+    records = ws.get_all_records()
+    if not records:
+        raise ValueError("Il foglio 'prima_nota' è vuoto o senza intestazione valida.")
+    df = pd.DataFrame(records)
+    if "Importo" not in df.columns:
+        raise KeyError("Colonna 'Importo' non trovata. Verifica l'intestazione del foglio.")
+    df["Importo"] = df["Importo"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
+    df["Importo"] = pd.to_numeric(df["Importo"], errors="coerce").fillna(0.0)
+    df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
+    df["Mese"] = df["Data"].dt.strftime("%Y-%m")
+    df["Data"] = df["Data"].dt.strftime("%d/%m/%Y")
+    return df, ws
 
-st.sidebar.markdown("### \ud83d\udc64 Seleziona utente:")
-utente = st.sidebar.selectbox("Utente:", list(utenti.keys()))
-ruolo = utenti[utente]
-st.sidebar.markdown(f"**Ruolo:** `{ruolo}`")
 
-# === Navigazione ===
-st.sidebar.markdown("### \ud83d\udcc1 Sezioni")
-sezione = st.sidebar.radio("Naviga", [
-    "Prima Nota",
-    "Dashboard",
-    "Rendiconto ETS",
-    "\u2795 Nuovo Movimento",
-    "\u270f\ufe0f Saldi Cassa"
-])
+def update_sheet(dataframe):
+    worksheet = get_worksheet()
+    clean_df = dataframe.fillna("")  # FIX: sostituisce NaN con stringa vuota
+    worksheet.clear()
+    worksheet.update([clean_df.columns.values.tolist()] + clean_df.values.tolist())
 
-# === Contenuto dinamico ===
-if sezione == "Prima Nota":
-    mostra_prima_nota(ruolo)
-elif sezione == "Dashboard":
-    mostra_dashboard()
-elif sezione == "Rendiconto ETS":
-    mostra_rendiconto()
-elif sezione == "\u2795 Nuovo Movimento":
-    mostra_nuovo_movimento(ruolo)
-elif sezione == "\u270f\ufe0f Saldi Cassa":
-    mostra_saldi_cassa(ruolo)
+
+def mostra_prima_nota(ruolo):
+    st.header("📒 Prima Nota")
+
+    try:
+        df, ws = load_data()
+        df_display = df.copy()
+        df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
+        df_display["✔️ Seleziona"] = False
+
+        edited_df = st.data_editor(
+            df_display,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            disabled=["Data", "Mese"],
+            column_config={
+                "✔️ Seleziona": st.column_config.CheckboxColumn(required=False)
+            }
+        )
+
+        selezionate = edited_df[edited_df["✔️ Seleziona"] == True]
+
+        st.divider()
+        st.subheader("🛠️ Azioni disponibili")
+
+        if len(selezionate) == 1:
+            riga = selezionate.iloc[0]
+            st.success("✅ Riga selezionata:")
+            st.json(riga.to_dict())
+
+            with st.form("modifica_editor"):
+                data_dt = datetime.strptime(riga["Data"], "%d/%m/%Y")
+                nuova_data = st.date_input("Data", data_dt)
+                nuova_causale = st.text_input("Causale", riga["Causale"])
+                nuovo_centro = st.text_input("Centro", riga["Centro"])
+                nuovo_importo = st.text_input("Importo", riga["Importo"])
+                nuova_descrizione = st.text_input("Descrizione", riga["Descrizione"])
+                nuova_cassa = st.text_input("Cassa", riga["Cassa"])
+                nuove_note = st.text_input("Note", riga["Note"])
+
+                submit = st.form_submit_button("💾 Salva modifiche")
+                if submit:
+                    try:
+                        parsed_importo = float(nuovo_importo.replace(".", "").replace(",", "."))
+                        condizione = (
+                            (df["Data"] == riga["Data"]) &
+                            (df["Causale"] == riga["Causale"]) &
+                            (df["Centro"] == riga["Centro"]) &
+                            (df["Descrizione"] == riga["Descrizione"]) &
+                            (df["Cassa"] == riga["Cassa"]) &
+                            (df["Note"] == riga["Note"])
+                        )
+                        index = df[condizione].index[0]
+                        df.loc[index] = [
+                            nuova_data.strftime("%d/%m/%Y"),
+                            nuova_causale,
+                            nuovo_centro,
+                            parsed_importo,
+                            nuova_descrizione,
+                            nuova_cassa,
+                            nuove_note,
+                            nuova_data.strftime("%Y-%m")
+                        ]
+                        update_sheet(df)
+                        st.success("✅ Modifica salvata.")
+                        st.experimental_rerun()
+                    except Exception as e:
+                        st.error("❌ Errore durante la modifica.")
+                        st.exception(e)
+
+            if st.button("🗑️ Elimina riga"):
+                try:
+                    condizione = (
+                        (df["Data"] == riga["Data"]) &
+                        (df["Causale"] == riga["Causale"]) &
+                        (df["Centro"] == riga["Centro"]) &
+                        (df["Descrizione"] == riga["Descrizione"]) &
+                        (df["Cassa"] == riga["Cassa"]) &
+                        (df["Note"] == riga["Note"])
+                    )
+                    df = df[~condizione]
+                    update_sheet(df)
+                    st.success("🗑️ Riga eliminata.")
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error("❌ Errore durante eliminazione.")
+                    st.exception(e)
+
+        elif len(selezionate) > 1:
+            st.warning("❗ Seleziona solo una riga per eseguire le azioni.")
+        else:
+            st.info("ℹ️ Nessuna riga selezionata.")
+
+    except Exception as e:
+        st.error("❌ Errore generale nella sezione Prima Nota.")
+        st.exception(e)
