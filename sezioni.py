@@ -70,7 +70,7 @@ def mostra_prima_nota(ruolo):
     try:
         df, ws = load_data()
         df_display = df.copy()
-df_display["Importo"] = df_display["Importo"].map(lambda x: "€ {:,.2f}".format(x).replace(",", "X").replace(".", ",").replace("X", "."))
+        df_display["Importo"] = df_display["Importo"].map(lambda x: "€ {:,.2f}".format(x).replace(",", "X").replace(".", ",").replace("X", "."))
         df_display["Seleziona"] = False
 
         edited_df = st.data_editor(
