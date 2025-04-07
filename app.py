@@ -1,11 +1,21 @@
+
+# commit: fix ImportError debug - aggiunto blocco try/except globale per mostrare eccezioni interne
+
 import streamlit as st
-from sezioni import (
-    mostra_prima_nota,
-    mostra_dashboard,
-    mostra_rendiconto,
-    mostra_nuovo_movimento,
-    mostra_saldi_cassa
-)
+
+# DEBUG: cattura errori generici oscurati da Streamlit Cloud
+try:
+    from sezioni import (
+        mostra_prima_nota,
+        mostra_dashboard,
+        mostra_rendiconto,
+        mostra_nuovo_movimento,
+        mostra_saldi_cassa
+    )
+except Exception as e:
+    st.error("❌ Errore durante l'import di 'sezioni.py'")
+    st.exception(e)
+    st.stop()
 
 st.set_page_config(
     page_title="Gestionale Contabilità ETS",
