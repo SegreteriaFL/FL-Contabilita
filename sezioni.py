@@ -81,10 +81,6 @@ df_display["Importo"] = df_display["Importo"].map(lambda x: "€ {:,.2f}".format
             disabled=["Data", "Mese"],
             column_order=[col for col in df_display.columns if col != "Mese"],
             column_config={"Seleziona": st.column_config.CheckboxColumn(required=False)}
-        )
-            disabled=["Data", "Mese"],
-            column_config={"Seleziona": st.column_config.CheckboxColumn(required=False)}
-        )
 
         selezionate = edited_df[edited_df["Seleziona"] == True]
 
@@ -117,7 +113,6 @@ df_display["Importo"] = df_display["Importo"].map(lambda x: "€ {:,.2f}".format
                             (df["Descrizione"] == riga["Descrizione"]) &
                             (df["Cassa"] == riga["Cassa"]) &
                             (df["Note"] == riga["Note"])
-                        )
                         index = df[condizione].index[0]
                         df.loc[index] = [
                             nuova_data.strftime("%d/%m/%Y"),
@@ -145,7 +140,6 @@ df_display["Importo"] = df_display["Importo"].map(lambda x: "€ {:,.2f}".format
                         (df["Descrizione"] == riga["Descrizione"]) &
                         (df["Cassa"] == riga["Cassa"]) &
                         (df["Note"] == riga["Note"])
-                    )
                     df = df[~condizione]
                     update_sheet(df)
                     st.success("Riga eliminata.")
@@ -257,7 +251,6 @@ def mostra_dashboard():
                 Credentials.from_service_account_info(
                     st.secrets["gcp_service_account"],
                     scopes=["https://www.googleapis.com/auth/spreadsheets"],
-                )
             ).open_by_key(SHEET_ID)
             foglio_saldi = sh.add_worksheet(title="saldi estratto conto", rows=100, cols=2)
             foglio_saldi.update("A1:B1", [["Cassa", "Estratto conto"]])
@@ -286,7 +279,6 @@ def mostra_dashboard():
             hide_index=True,
             num_rows="dynamic",
             key="saldi_editor"
-        )
 
         col1, col2 = st.columns(2)
         with col1:
