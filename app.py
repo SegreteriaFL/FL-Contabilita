@@ -17,10 +17,9 @@ except Exception as e:
     st.stop()
 
 st.set_page_config(
-    page_title="Gestionale Contabilit\u00e0 ETS",
-    page_icon="\ud83d\udcd2",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Gestionale Contabilità ETS",
+    page_icon=":ledger:",  # emoji supportata nativamente da Streamlit
+    ...
 )
 
 # === Login simulato ===
