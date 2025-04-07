@@ -1,18 +1,11 @@
 import streamlit as st
-import traceback
-
-try:
-    from sezioni import (
-        mostra_prima_nota,
-        mostra_dashboard,
-        mostra_rendiconto,
-        mostra_nuovo_movimento,
-        mostra_saldi_cassa
-    )
-except Exception as e:
-    st.error("❌ Errore durante l'import di `sezioni.py`")
-    st.code(traceback.format_exc())
-    st.stop()
+from sezioni import (
+    mostra_prima_nota,
+    mostra_dashboard,
+    mostra_rendiconto,
+    mostra_nuovo_movimento,
+    mostra_saldi_cassa
+)
 
 st.set_page_config(
     page_title="Gestionale Contabilità ETS",
