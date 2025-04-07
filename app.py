@@ -1,5 +1,5 @@
 
-# commit: fix import errore sezioni - garantita compatibilità e ordine funzioni aggiornato
+# commit: fix ImportError debug - aggiunto blocco try/except globale per mostrare eccezioni interne
 
 import streamlit as st
 
@@ -19,6 +19,7 @@ except Exception as e:
 
 st.set_page_config(
     page_title="Gestionale Contabilità ETS",
+    page_icon="📒",
     layout="wide",
     initial_sidebar_state="expanded"
 )
