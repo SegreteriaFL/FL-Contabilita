@@ -70,10 +70,10 @@ def mostra_prima_nota(ruolo):
     try:
         df, ws = load_data()
         df_display = df.copy()
-        df_display["Importo"] = df_display["Importo"].map("{:,.2f}".format).str.replace(",", "X").str.replace(".", ",").str.replace("X", ".")
+df_display["Importo"] = df_display["Importo"].map(lambda x: "€ {:,.2f}".format(x).replace(",", "X").replace(".", ",").replace("X", "."))
         df_display["Seleziona"] = False
 
-        edited_df = st.data_editor(
+        edited_df = st.data_editor(, column_order=[col for col in df_display.columns if col != 'Mese'])
             df_display,
             use_container_width=True,
             hide_index=True,
@@ -151,6 +151,12 @@ def mostra_prima_nota(ruolo):
                     st.exception(e)
 
         elif len(selezionate) > 1:
+        st.markdown('---')
+        st.markdown('### ➕ Inserisci un nuovo movimento')
+        if st.button('Aggiungi movimento dalla Prima Nota'):
+            st.session_state['nuovo_mov_inserito'] = False
+            st.session_state['page'] = '➕ Nuovo Movimento'
+            st.experimental_rerun()
             st.warning("Seleziona solo una riga per eseguire le azioni.")
         else:
             st.info("Nessuna riga selezionata.")
@@ -270,7 +276,7 @@ def mostra_dashboard():
                 "Estratto conto": [0.0] * 8
             })
 
-        df_edit = st.data_editor(
+        df_edit = st.data_editor(, column_order=[col for col in df_display.columns if col != 'Mese'])
             df_saldi,
             use_container_width=True,
             hide_index=True,
@@ -326,7 +332,6 @@ def mostra_dashboard():
     except Exception as e:
         st.error("Errore nel rendiconto.")
         st.exception(e)
-def mostra_nuovo_movimento(ruolo):
     st.header("Nuovo Movimento")
     try:
         opzioni_cassa = leggi_riferimenti("rif cassa")
@@ -465,4 +470,57 @@ def mostra_saldi_cassa(ruolo):
 
     except Exception as e:
         st.error("Errore generale nella sezione Saldi Cassa.")
+        st.exception(e)
+
+def mostra_nuovo_movimento(ruolo):
+    st.header("Nuovo Movimento")
+    try:
+        opzioni_cassa = leggi_riferimenti("rif cassa")
+        opzioni_causale = leggi_riferimenti("rif causale")
+        opzioni_centro = leggi_riferimenti("rif centro")
+
+        if "nuovo_mov_inserito" not in st.session_state:
+            st.session_state["nuovo_mov_inserito"] = False
+        if "submit_disabled" not in st.session_state:
+            st.session_state["submit_disabled"] = False
+
+        if not st.session_state["nuovo_mov_inserito"]:
+            with st.form("nuovo_movimento"):
+                data = st.date_input("Data")
+                causale = st.selectbox("Causale", opzioni_causale, index=None)
+                centro = st.selectbox("Centro", opzioni_centro, index=None)
+                importo = st.text_input("Importo", "")
+                descrizione = st.text_input("Descrizione", "")
+                cassa = st.selectbox("Cassa", opzioni_cassa, index=None)
+                note = st.text_input("Note", "")
+                submitted = st.form_submit_button("Aggiungi", disabled=st.session_state["submit_disabled"])
+
+            if submitted:
+                try:
+                    st.session_state["submit_disabled"] = True
+                    parsed = float(importo.replace(".", "").replace(",", "."))
+                    nuova_riga = [
+                        data.strftime("%d/%m/%Y"),
+                        causale,
+                        centro,
+                        parsed,
+                        descrizione,
+                        cassa,
+                        note,
+                        data.strftime("%Y-%m")
+                    ]
+                    df, _ = load_data()
+                    df.loc[len(df)] = nuova_riga
+                    update_sheet(df)
+                    st.session_state["nuovo_mov_inserito"] = True
+                    st.success("✅ Movimento aggiunto correttamente.")
+                    st.session_state["submit_disabled"] = False
+                except Exception as e:
+                    st.error("Errore durante inserimento.")
+                    st.exception(e)
+                    st.session_state["submit_disabled"] = False
+        else:
+            st.button("➕ Inserisci nuovo movimento", on_click=lambda: st.session_state.update(nuovo_mov_inserito=False))
+    except Exception as e:
+        st.error("Errore nell'inserimento movimento.")
         st.exception(e)
